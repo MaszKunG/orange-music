@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+backend/node_modules/
+
+# Local tools & binaries
+.tools/
+
+# Environment files
+.env
+backend/.env
+frontend/.env
+backend/.env.local
+frontend/.env.local
+
+# Database
+*.sqlite
+*.sqlite3
+*.db
+backend/database.sqlite
+
+# Media uploads (kept local during dev)
+backend/uploads/
+uploads/
+
+# Build artifacts
+frontend/dist/
+dist/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS Files
+.DS_Store
+Thumbs.db
