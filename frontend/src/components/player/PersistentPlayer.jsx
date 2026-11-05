@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { usePlayer } from '../../context/PlayerContext';
 import { useAuth } from '../../context/AuthContext';
-import { api, getFullMediaUrl } from '../../services/api';
+import { api, getFullMediaUrl, DEFAULT_COVER } from '../../services/api';
 import { useToast } from '../../context/ToastContext';
 
 export default function PersistentPlayer() {
@@ -94,7 +94,7 @@ export default function PersistentPlayer() {
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
   const coverUrl = currentSong.cover_path
     ? getFullMediaUrl(currentSong.cover_path)
-    : 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=100';
+    : DEFAULT_COVER;
 
   return (
     <>
@@ -105,6 +105,10 @@ export default function PersistentPlayer() {
             <img
               src={coverUrl}
               alt={currentSong.title}
+              onError={(e) => {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = DEFAULT_COVER;
+              }}
               className={`w-12 h-12 rounded-lg object-cover bg-dark-card border border-dark-border ${
                 isPlaying ? 'ring-1 ring-orange-500' : ''
               }`}

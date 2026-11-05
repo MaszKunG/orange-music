@@ -1,8 +1,10 @@
+export const DEFAULT_COVER = 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=80';
+
 const rawBase = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const API_BASE = `${rawBase.replace(/\/$/, '')}/api`;
 
 export function getFullMediaUrl(path) {
-  if (!path) return '';
+  if (!path) return DEFAULT_COVER;
   if (path.startsWith('http://') || path.startsWith('https://')) {
     return path;
   }

@@ -13,7 +13,7 @@ import {
   BookOpen,
   ArrowRight
 } from 'lucide-react';
-import { api } from '../services/api';
+import { api, getFullMediaUrl, DEFAULT_COVER } from '../services/api';
 import SongCard from '../components/song/SongCard';
 import { usePlayer } from '../context/PlayerContext';
 import { useAuth } from '../context/AuthContext';
@@ -135,11 +135,15 @@ export default function LandingHomePage() {
           {featuredSong && (
             <div className="lg:col-span-5 flex justify-center">
               <div className="w-full max-w-sm bg-dark-surface/90 border border-orange-500/30 rounded-2xl p-4 shadow-dialog hover:border-orange-500/60 transition-all duration-300">
-                <div className="relative aspect-square rounded-xl overflow-hidden mb-4 group">
+                <div className="relative aspect-square rounded-xl overflow-hidden mb-4 group bg-dark-card">
                   <img
-                    src={featuredSong.cover_path || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500'}
+                    src={getFullMediaUrl(featuredSong.cover_path)}
                     alt={featuredSong.title}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    onError={(e) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = DEFAULT_COVER;
+                    }}
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex items-end p-4">
                     <span className="text-xs font-semibold text-orange-400 bg-black/60 px-2.5 py-1 rounded-full border border-orange-500/30">

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Play, Pause, Heart, Plus, Music2 } from 'lucide-react';
 import { usePlayer } from '../../context/PlayerContext';
 import { useAuth } from '../../context/AuthContext';
-import { api, getFullMediaUrl } from '../../services/api';
+import { api, getFullMediaUrl, DEFAULT_COVER } from '../../services/api';
 import { useToast } from '../../context/ToastContext';
 import AddToPlaylistModal from '../playlist/AddToPlaylistModal';
 
@@ -58,7 +58,7 @@ export default function SongCard({ song, playlist = [] }) {
 
   const coverUrl = song.cover_path 
     ? getFullMediaUrl(song.cover_path) 
-    : 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500';
+    : DEFAULT_COVER;
 
   return (
     <>
@@ -71,6 +71,10 @@ export default function SongCard({ song, playlist = [] }) {
               alt={song.title}
               className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
               loading="lazy"
+              onError={(e) => {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = DEFAULT_COVER;
+              }}
             />
 
             {/* Gradient Overlay on Hover */}

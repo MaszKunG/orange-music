@@ -12,7 +12,7 @@ import {
   FileText, 
   ArrowLeft 
 } from 'lucide-react';
-import { api, getFullMediaUrl } from '../services/api';
+import { api, getFullMediaUrl, DEFAULT_COVER } from '../services/api';
 import { usePlayer } from '../context/PlayerContext';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -103,7 +103,7 @@ export default function SongDetailPage() {
 
   const coverUrl = song.cover_path
     ? getFullMediaUrl(song.cover_path)
-    : 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500';
+    : DEFAULT_COVER;
 
   return (
     <div className="space-y-10 pb-20">
@@ -118,7 +118,15 @@ export default function SongDetailPage() {
       {/* Hero ส่วนหัวของเพลง */}
       <section className="flex flex-col md:flex-row items-center md:items-end gap-6 bg-gradient-to-t from-dark-surface to-dark-card/50 p-6 sm:p-8 rounded-3xl border border-dark-border shadow-dialog">
         <div className="relative w-48 h-48 sm:w-56 sm:h-56 rounded-2xl overflow-hidden shadow-2xl flex-shrink-0 bg-dark-card border border-dark-borderSubtle">
-          <img src={coverUrl} alt={song.title} className="w-full h-full object-cover" />
+          <img 
+            src={coverUrl} 
+            alt={song.title} 
+            className="w-full h-full object-cover" 
+            onError={(e) => {
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = DEFAULT_COVER;
+            }}
+          />
         </div>
 
         <div className="flex-1 space-y-3 text-center md:text-left">

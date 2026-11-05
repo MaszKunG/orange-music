@@ -112,6 +112,22 @@ async function initDatabase() {
 
   console.log('✅ ตารางฐานข้อมูลพร้อมใช้งาน');
 
+  // ซ่อมแซมรูปภาพปกที่เป็น Dead Links จาก Unsplash ให้อัปเดตเป็นภาพที่ใช้งานได้ถาวร
+  try {
+    await db.run(`
+      UPDATE songs 
+      SET cover_path = 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&auto=format&fit=crop&q=80'
+      WHERE cover_path LIKE '%photo-1507842229451-7f01be7f7b2a%'
+    `);
+    await db.run(`
+      UPDATE songs 
+      SET cover_path = 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=500&auto=format&fit=crop&q=80'
+      WHERE cover_path LIKE '%photo-1520523839898-507127053c37%'
+    `);
+  } catch (repairErr) {
+    console.warn('Image repair note:', repairErr.message);
+  }
+
   // ตรวจสอบว่ามีผู้ใช้แอดมินหรือยัง
   const existingAdmin = await db.get(`SELECT id FROM users WHERE role = 'admin' LIMIT 1`);
   if (!existingAdmin) {
@@ -225,7 +241,7 @@ async function initDatabase() {
         description: 'บีตผ่อนคลายเบาๆ เหมาะสำหรับเปิดคลอระหว่างอ่านหนังสือสอบหรือทำงานวิจัย',
         lyrics: `(Instrumental Track)\nดนตรีบรรเลงเพื่อเสริมสร้างสมาธิและความจำ`,
         audio_path: '/uploads/audio/orange_study.wav',
-        cover_path: 'https://images.unsplash.com/photo-1507842229451-7f01be7f7b2a?w=500&auto=format&fit=crop&q=80',
+        cover_path: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&auto=format&fit=crop&q=80',
         play_count: 310,
         status: 'approved',
         reviewed_by: adminResult.id,
@@ -255,7 +271,7 @@ async function initDatabase() {
         description: 'ผลงานประพันธ์เปียโนคลาสสิกร่วมสมัย โดยคณาจารย์ภาควิชาดนตรีศึกษา',
         lyrics: `(ดนตรีบรรเลงเปียโนเดี่ยว)`,
         audio_path: '/uploads/audio/orange_piano.wav',
-        cover_path: 'https://images.unsplash.com/photo-1520523839898-507127053c37?w=500&auto=format&fit=crop&q=80',
+        cover_path: 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=500&auto=format&fit=crop&q=80',
         play_count: 180,
         status: 'approved',
         reviewed_by: adminResult.id,
