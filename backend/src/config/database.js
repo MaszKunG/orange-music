@@ -22,8 +22,8 @@ if (isTurso) {
 }
 
 const client = createClient({
-  url: dbUrl,
-  authToken: process.env.TURSO_AUTH_TOKEN,
+  url: dbUrl.trim(),
+  authToken: process.env.TURSO_AUTH_TOKEN ? process.env.TURSO_AUTH_TOKEN.trim() : undefined,
 });
 
 // เปิดการใช้งาน Foreign Keys ใน SQLite
