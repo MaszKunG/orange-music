@@ -28,6 +28,20 @@ app.use(express.urlencoded({ extended: true }));
 // เสิร์ฟ Static Files สำหรับไฟล์เพลงและรูปภาพที่อัปโหลด
 app.use('/uploads', express.static(path.resolve(__dirname, '../uploads')));
 
+// Welcome & Root Status endpoint
+app.get('/', (req, res) => {
+  res.json({
+    status: 'online',
+    service: '🍊 Orange Music Backend API',
+    message: 'เซิร์ฟเวอร์ Orange Music API พร้อมให้บริการแล้ว',
+    endpoints: {
+      health: '/api/health',
+      songs: '/api/songs',
+      categories: '/api/categories'
+    }
+  });
+});
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', service: 'Orange Music API', time: new Date().toISOString() });
