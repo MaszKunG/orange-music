@@ -1,102 +1,61 @@
 const path = require('path');
+const { createClient } = require('@libsql/client');
 require('dotenv').config();
 
-let dbAsync;
+// กำหนด URL ของฐานข้อมูล
+// 1) หากมี TURSO_DATABASE_URL ให้เชื่อมต่อไปยังคลาวด์
+// 2) หากไม่มี ให้ใช้ไฟล์ SQLite ในเครื่องผ่าน LibSQL (หมดปัญหาเรื่อง C++ Native / GLIBC บน Linux)
+const isTurso = Boolean(process.env.TURSO_DATABASE_URL);
 
-// หากมีการตั้งค่า TURSO_DATABASE_URL จะเชื่อมต่อฐานข้อมูลบนคลาวด์ของ Turso (LibSQL)
-if (process.env.TURSO_DATABASE_URL) {
-  const { createClient } = require('@libsql/client');
-
-  const client = createClient({
-    url: process.env.TURSO_DATABASE_URL,
-    authToken: process.env.TURSO_AUTH_TOKEN,
-  });
-
-  console.log('✅ เชื่อมต่อฐานข้อมูลคลาวด์ Turso (LibSQL) สำเร็จที่:', process.env.TURSO_DATABASE_URL);
-
-  dbAsync = {
-    isTurso: true,
-    client: client,
-    get: async (sql, params = []) => {
-      const res = await client.execute({ sql, args: params });
-      return res.rows && res.rows.length > 0 ? res.rows[0] : null;
-    },
-    all: async (sql, params = []) => {
-      const res = await client.execute({ sql, args: params });
-      return res.rows || [];
-    },
-    run: async (sql, params = []) => {
-      const res = await client.execute({ sql, args: params });
-      return {
-        id: res.lastInsertRowid !== undefined && res.lastInsertRowid !== null 
-          ? Number(res.lastInsertRowid) 
-          : 0,
-        changes: res.rowsAffected || 0
-      };
-    },
-    exec: async (sql) => {
-      if (typeof client.executeMultiple === 'function') {
-        await client.executeMultiple(sql);
-      } else {
-        await client.execute(sql);
-      }
-    }
-  };
+let dbUrl;
+if (isTurso) {
+  dbUrl = process.env.TURSO_DATABASE_URL;
+  console.log('✅ เชื่อมต่อฐานข้อมูลคลาวด์ Turso (LibSQL) ที่:', dbUrl);
 } else {
-  // หากไม่มีการระบุ URL คลาวด์ จะใช้ SQLite ภายในเครื่องตามปกติ
-  const sqlite3 = require('sqlite3').verbose();
-
-  const dbPath = process.env.DB_PATH 
+  const localDbPath = process.env.DB_PATH 
     ? path.resolve(__dirname, '../../', process.env.DB_PATH) 
     : path.resolve(__dirname, '../../database.sqlite');
-
-  const db = new sqlite3.Database(dbPath, (err) => {
-    if (err) {
-      console.error('❌ ไม่สามารถเชื่อมต่อกับฐานข้อมูล SQLite ได้:', err.message);
-    } else {
-      console.log('✅ เชื่อมต่อฐานข้อมูล SQLite สำเร็จที่:', dbPath);
-    }
-  });
-
-  // เปิดการใช้งาน Foreign Keys ใน SQLite
-  db.run('PRAGMA foreign_keys = ON');
-
-  dbAsync = {
-    isTurso: false,
-    dbInstance: db,
-    get: (sql, params = []) => {
-      return new Promise((resolve, reject) => {
-        db.get(sql, params, (err, row) => {
-          if (err) reject(err);
-          else resolve(row);
-        });
-      });
-    },
-    all: (sql, params = []) => {
-      return new Promise((resolve, reject) => {
-        db.all(sql, params, (err, rows) => {
-          if (err) reject(err);
-          else resolve(rows);
-        });
-      });
-    },
-    run: (sql, params = []) => {
-      return new Promise((resolve, reject) => {
-        db.run(sql, params, function (err) {
-          if (err) reject(err);
-          else resolve({ id: this.lastID, changes: this.changes });
-        });
-      });
-    },
-    exec: (sql) => {
-      return new Promise((resolve, reject) => {
-        db.exec(sql, (err) => {
-          if (err) reject(err);
-          else resolve();
-        });
-      });
-    }
-  };
+  
+  // แปลง path เป็น file: url สำหรับ LibSQL
+  dbUrl = `file:${localDbPath.replace(/\\/g, '/')}`;
+  console.log('✅ เชื่อมต่อฐานข้อมูล SQLite (LibSQL) สำเร็จที่:', localDbPath);
 }
+
+const client = createClient({
+  url: dbUrl,
+  authToken: process.env.TURSO_AUTH_TOKEN,
+});
+
+// เปิดการใช้งาน Foreign Keys ใน SQLite
+client.execute('PRAGMA foreign_keys = ON').catch(() => {});
+
+const dbAsync = {
+  isTurso,
+  client,
+  get: async (sql, params = []) => {
+    const res = await client.execute({ sql, args: params });
+    return res.rows && res.rows.length > 0 ? res.rows[0] : null;
+  },
+  all: async (sql, params = []) => {
+    const res = await client.execute({ sql, args: params });
+    return res.rows || [];
+  },
+  run: async (sql, params = []) => {
+    const res = await client.execute({ sql, args: params });
+    return {
+      id: res.lastInsertRowid !== undefined && res.lastInsertRowid !== null 
+        ? Number(res.lastInsertRowid) 
+        : 0,
+      changes: res.rowsAffected || 0
+    };
+  },
+  exec: async (sql) => {
+    if (typeof client.executeMultiple === 'function') {
+      await client.executeMultiple(sql);
+    } else {
+      await client.execute(sql);
+    }
+  }
+};
 
 module.exports = dbAsync;
