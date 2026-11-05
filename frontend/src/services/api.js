@@ -42,11 +42,15 @@ export const api = {
   get: (url) => request(url, { method: 'GET' }),
   post: (url, body) => request(url, { 
     method: 'POST', 
-    body: body instanceof FormData ? body : JSON.stringify(body) 
+    body: body instanceof FormData ? body : (body !== undefined ? JSON.stringify(body) : undefined) 
   }),
   put: (url, body) => request(url, { 
     method: 'PUT', 
-    body: body instanceof FormData ? body : JSON.stringify(body) 
+    body: body instanceof FormData ? body : (body !== undefined ? JSON.stringify(body) : undefined) 
+  }),
+  patch: (url, body) => request(url, { 
+    method: 'PATCH', 
+    body: body instanceof FormData ? body : (body !== undefined ? JSON.stringify(body) : undefined) 
   }),
   delete: (url) => request(url, { method: 'DELETE' }),
 };
