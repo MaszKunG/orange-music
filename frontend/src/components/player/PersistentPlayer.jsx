@@ -13,6 +13,7 @@ import {
   FileText,
   ListMusic,
   Maximize2,
+  Loader2,
   X
 } from 'lucide-react';
 import { usePlayer } from '../../context/PlayerContext';
@@ -24,6 +25,7 @@ export default function PersistentPlayer() {
   const {
     currentSong,
     isPlaying,
+    isBuffering,
     currentTime,
     duration,
     volume,
@@ -169,10 +171,13 @@ export default function PersistentPlayer() {
             {/* ปุ่ม Play / Pause ทรงกลมส้ม (#FF7A00) 50% Radius */}
             <button
               onClick={togglePlay}
-              aria-label={isPlaying ? 'หยุดเล่น' : 'เล่นต่อ'}
-              className="w-10 h-10 rounded-full bg-orange-500 hover:bg-orange-400 text-black flex items-center justify-center shadow-glow-orange transition-all transform hover:scale-105 active:scale-95"
+              aria-label={isBuffering ? 'กำลังโหลดเพลง' : isPlaying ? 'หยุดเล่น' : 'เล่นต่อ'}
+              disabled={isBuffering}
+              className="w-10 h-10 rounded-full bg-orange-500 hover:bg-orange-400 text-black flex items-center justify-center shadow-glow-orange transition-all transform hover:scale-105 active:scale-95 disabled:opacity-90"
             >
-              {isPlaying ? (
+              {isBuffering ? (
+                <Loader2 className="w-5 h-5 text-black animate-spin" />
+              ) : isPlaying ? (
                 <Pause className="w-5 h-5 fill-black stroke-black" />
               ) : (
                 <Play className="w-5 h-5 fill-black stroke-black translate-x-0.5" />

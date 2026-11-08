@@ -377,7 +377,7 @@ async function deleteSong(req, res) {
   }
 }
 
-// สตรีมไฟล์เสียง (รองรับทั้งไฟล์บนดิสก์ และดึงจากฐานข้อมูล Turso หากเซิร์ฟเวอร์เพิ่งรีสตาร์ท)
+// สตรีมไฟล์เสียง (รองรับ HTTP 206 Range Streaming, Disk Caching, และดึงจากฐานข้อมูล Turso)
 async function streamSongAudio(req, res) {
   try {
     const songId = req.params.id;
@@ -386,22 +386,74 @@ async function streamSongAudio(req, res) {
       return res.status(404).json({ success: false, message: 'ไม่พบเพลง' });
     }
 
-    // 1. ถ้ามีไฟล์บนดิสก์จริง
+    const cacheDir = path.resolve(__dirname, '../../uploads/audio');
+    if (!fs.existsSync(cacheDir)) {
+      try { fs.mkdirSync(cacheDir, { recursive: true }); } catch (e) { /* ignore */ }
+    }
+
+    // 1. ตรวจสอบไฟล์บนดิสก์จริง
     if (song.audio_path && song.audio_path.startsWith('/uploads/')) {
       const diskPath = path.resolve(__dirname, '../../', song.audio_path.replace(/^\//, ''));
       if (fs.existsSync(diskPath)) {
-        return res.sendFile(diskPath);
+        return res.sendFile(diskPath, { acceptRanges: true });
       }
     }
 
-    // 2. ถ้าไฟล์บนดิสก์หายไป (เพราะ Render รีสตาร์ท) -> สตรีมตรงจากฐานข้อมูล Turso ทันที!
+    // ตรวจสอบไฟล์แคชในเครื่อง Render
+    const cachedFileMp3 = path.join(cacheDir, `cached_${songId}.mp3`);
+    const cachedFileWav = path.join(cacheDir, `cached_${songId}.wav`);
+    if (fs.existsSync(cachedFileMp3)) {
+      return res.sendFile(cachedFileMp3, { acceptRanges: true });
+    }
+    if (fs.existsSync(cachedFileWav)) {
+      return res.sendFile(cachedFileWav, { acceptRanges: true });
+    }
+
+    // 2. ถ้ายังไม่มีบนดิสก์ (เซิร์ฟเวอร์เพิ่งรีสตาร์ท) -> ดึงจาก Turso DB
     const audioRecord = await db.get(`SELECT data, mime FROM song_audio WHERE song_id = ?`, [songId]);
     if (audioRecord && audioRecord.data) {
       const buffer = Buffer.from(audioRecord.data);
-      res.setHeader('Content-Type', audioRecord.mime || 'audio/mpeg');
-      res.setHeader('Content-Length', buffer.length);
-      res.setHeader('Accept-Ranges', 'bytes');
-      return res.send(buffer);
+      const mimeType = audioRecord.mime || 'audio/mpeg';
+      const fileExt = mimeType.includes('wav') ? '.wav' : '.mp3';
+      const targetCacheFile = path.join(cacheDir, `cached_${songId}${fileExt}`);
+
+      // เซฟลงดิสก์ Render ในเบื้องหลังเพื่อให้การเล่นครั้งต่อไปและ Seek เร็วระดับเสี้ยววินาที
+      try {
+        fs.writeFileSync(targetCacheFile, buffer);
+        return res.sendFile(targetCacheFile, { acceptRanges: true });
+      } catch (writeErr) {
+        console.warn('Cache write to disk failed, fallback to memory range streaming:', writeErr.message);
+      }
+
+      // Fallback: รองรับ HTTP 206 Partial Content โดยตรงจาก Memory Buffer
+      const totalSize = buffer.length;
+      const range = req.headers.range;
+
+      if (range) {
+        const parts = range.replace(/bytes=/, '').split('-');
+        const start = parseInt(parts[0], 10);
+        const end = parts[1] ? parseInt(parts[1], 10) : totalSize - 1;
+
+        if (start >= totalSize || end >= totalSize) {
+          res.setHeader('Content-Range', `bytes */${totalSize}`);
+          return res.status(416).send('Requested range not satisfiable');
+        }
+
+        const chunkSize = (end - start) + 1;
+        res.status(206);
+        res.setHeader('Content-Range', `bytes ${start}-${end}/${totalSize}`);
+        res.setHeader('Accept-Ranges', 'bytes');
+        res.setHeader('Content-Length', chunkSize);
+        res.setHeader('Content-Type', mimeType);
+        res.setHeader('Cache-Control', 'public, max-age=604800');
+        return res.send(buffer.subarray(start, end + 1));
+      } else {
+        res.setHeader('Content-Type', mimeType);
+        res.setHeader('Content-Length', totalSize);
+        res.setHeader('Accept-Ranges', 'bytes');
+        res.setHeader('Cache-Control', 'public, max-age=604800');
+        return res.send(buffer);
+      }
     }
 
     return res.status(404).json({ success: false, message: 'ไม่พบไฟล์เสียง' });

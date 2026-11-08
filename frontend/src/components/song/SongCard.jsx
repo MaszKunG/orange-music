@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Play, Pause, Heart, Plus, Music2 } from 'lucide-react';
+import { Play, Pause, Heart, Plus, Music2, Loader2 } from 'lucide-react';
 import { usePlayer } from '../../context/PlayerContext';
 import { useAuth } from '../../context/AuthContext';
 import { api, getFullMediaUrl, DEFAULT_COVER } from '../../services/api';
@@ -8,7 +8,7 @@ import { useToast } from '../../context/ToastContext';
 import AddToPlaylistModal from '../playlist/AddToPlaylistModal';
 
 export default function SongCard({ song, playlist = [] }) {
-  const { currentSong, isPlaying, playSong, updateSongLikeStatus } = usePlayer();
+  const { currentSong, isPlaying, isBuffering, playSong, updateSongLikeStatus } = usePlayer();
   const { isAuthenticated } = useAuth();
   const { showToast } = useToast();
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
@@ -16,6 +16,7 @@ export default function SongCard({ song, playlist = [] }) {
 
   const isCurrent = currentSong?.id === song.id;
   const isThisPlaying = isCurrent && isPlaying;
+  const isThisBuffering = isCurrent && isBuffering;
 
   const handlePlayClick = (e) => {
     e.stopPropagation();
@@ -83,14 +84,16 @@ export default function SongCard({ song, playlist = [] }) {
             {/* Circular Play Button ทรงกลมส้ม (#FF7A00) สไตล์ Spotify */}
             <button
               onClick={handlePlayClick}
-              aria-label={isThisPlaying ? 'หยุดเล่น' : 'เล่นเพลง'}
+              aria-label={isThisBuffering ? 'กำลังโหลดเพลง' : isThisPlaying ? 'หยุดเล่น' : 'เล่นเพลง'}
               className={`absolute bottom-2.5 right-2.5 w-11 h-11 rounded-full bg-orange-500 hover:bg-orange-400 text-black flex items-center justify-center shadow-glow-orange transition-all duration-300 transform ${
-                isThisPlaying
+                isThisPlaying || isThisBuffering
                   ? 'opacity-100 translate-y-0 scale-100 ring-2 ring-orange-300'
                   : 'opacity-0 translate-y-3 group-hover:opacity-100 group-hover:translate-y-0 hover:scale-110'
               }`}
             >
-              {isThisPlaying ? (
+              {isThisBuffering ? (
+                <Loader2 className="w-5 h-5 text-black animate-spin" />
+              ) : isThisPlaying ? (
                 <Pause className="w-5 h-5 fill-black stroke-black" />
               ) : (
                 <Play className="w-5 h-5 fill-black stroke-black translate-x-0.5" />

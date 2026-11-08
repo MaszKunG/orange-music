@@ -8,6 +8,7 @@ export function PlayerProvider({ children }) {
   const audioRef = useRef(new Audio());
   const [currentSong, setCurrentSong] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isBuffering, setIsBuffering] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(() => {
@@ -25,10 +26,21 @@ export function PlayerProvider({ children }) {
   useEffect(() => {
     const audio = audioRef.current;
     audio.volume = volume;
+    audio.preload = 'auto';
 
     const onTimeUpdate = () => setCurrentTime(audio.currentTime);
-    const onLoadedMetadata = () => setDuration(audio.duration || 0);
+    const onLoadedMetadata = () => {
+      setDuration(audio.duration || 0);
+      setIsBuffering(false);
+    };
+    const onWaiting = () => setIsBuffering(true);
+    const onPlaying = () => {
+      setIsBuffering(false);
+      setIsPlaying(true);
+    };
+    const onCanPlay = () => setIsBuffering(false);
     const onEnded = () => {
+      setIsBuffering(false);
       if (isLoop) {
         audio.currentTime = 0;
         audio.play().catch(() => {});
@@ -38,17 +50,24 @@ export function PlayerProvider({ children }) {
     };
     const onError = (e) => {
       console.warn('Audio play error:', e);
+      setIsBuffering(false);
       setIsPlaying(false);
     };
 
     audio.addEventListener('timeupdate', onTimeUpdate);
     audio.addEventListener('loadedmetadata', onLoadedMetadata);
+    audio.addEventListener('waiting', onWaiting);
+    audio.addEventListener('playing', onPlaying);
+    audio.addEventListener('canplay', onCanPlay);
     audio.addEventListener('ended', onEnded);
     audio.addEventListener('error', onError);
 
     return () => {
       audio.removeEventListener('timeupdate', onTimeUpdate);
       audio.removeEventListener('loadedmetadata', onLoadedMetadata);
+      audio.removeEventListener('waiting', onWaiting);
+      audio.removeEventListener('playing', onPlaying);
+      audio.removeEventListener('canplay', onCanPlay);
       audio.removeEventListener('ended', onEnded);
       audio.removeEventListener('error', onError);
     };
@@ -85,6 +104,7 @@ export function PlayerProvider({ children }) {
     }
 
     setCurrentSong(song);
+    setIsBuffering(true);
     audio.src = getFullMediaUrl(song.audio_path);
     audio.currentTime = 0;
 
@@ -92,11 +112,13 @@ export function PlayerProvider({ children }) {
       .play()
       .then(() => {
         setIsPlaying(true);
+        setIsBuffering(false);
         // เรียก API เพื่อบันทึกยอด play_count ใน backend
         api.get(`/songs/${song.id}`).catch(() => {});
       })
       .catch((err) => {
         console.error('Play error:', err);
+        setIsBuffering(false);
         setIsPlaying(false);
       });
   };
@@ -212,6 +234,7 @@ export function PlayerProvider({ children }) {
       value={{
         currentSong,
         isPlaying,
+        isBuffering,
         currentTime,
         duration,
         volume,
