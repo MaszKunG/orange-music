@@ -165,9 +165,11 @@ async function updateProfile(req, res) {
       updatedPasswordHash = await bcrypt.hash(new_password, 10);
     }
 
-    // ถ้ามีการอัปโหลด avatar ผ่าน multipart form
+    // ถ้ามีการอัปโหลด avatar ผ่าน multipart form หรือส่งเป็น Data URL
     if (req.file) {
-      updatedAvatar = await saveUploadedFile(req.file, 'covers');
+      updatedAvatar = await saveUploadedFile(req.file, 'avatars');
+    } else if (avatar && (avatar.startsWith('data:image/') || avatar.startsWith('http://') || avatar.startsWith('https://'))) {
+      updatedAvatar = avatar;
     }
 
     await db.run(

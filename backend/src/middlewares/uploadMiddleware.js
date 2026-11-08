@@ -47,13 +47,13 @@ const fileFilter = (req, file, cb) => {
       cb(new Error('ไฟล์เสียงต้องเป็นนามสกุล .mp3, .wav หรือ .m4a เท่านั้น'), false);
     }
   } else if (file.fieldname === 'cover' || file.fieldname === 'avatar') {
-    const allowedExts = ['.jpg', '.jpeg', '.png'];
-    const allowedMimes = ['image/jpeg', 'image/png', 'image/jpg'];
+    const allowedExts = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
+    const allowedMimes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp', 'image/gif'];
 
-    if (allowedExts.includes(ext) && allowedMimes.includes(file.mimetype)) {
+    if (allowedExts.includes(ext) || allowedMimes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('รูปภาพต้องเป็นนามสกุล .jpg หรือ .png เท่านั้น'), false);
+      cb(new Error('รูปภาพต้องเป็นนามสกุล .jpg, .png หรือ .webp เท่านั้น'), false);
     }
   } else {
     cb(new Error('ฟิลด์ไฟล์ไม่ถูกต้อง'), false);
@@ -75,7 +75,7 @@ const uploadAvatarFile = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 2 * 1024 * 1024 // สูงสุด 2MB
+    fileSize: 10 * 1024 * 1024 // สูงสุด 10MB สำหรับรูปโปรไฟล์
   }
 }).single('avatar');
 

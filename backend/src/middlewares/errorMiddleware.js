@@ -5,7 +5,7 @@ function errorHandler(err, req, res, next) {
     if (err.code === 'LIMIT_FILE_SIZE') {
       return res.status(400).json({
         success: false,
-        message: 'ขนาดไฟล์เกินกำหนด (ไฟล์เสียงต้องไม่เกิน 20MB และรูปภาพต้องไม่เกิน 2MB)'
+        message: 'ขนาดไฟล์เกินกำหนด (ไฟล์เสียงต้องไม่เกิน 20MB และรูปภาพต้องไม่เกิน 10MB)'
       });
     }
     return res.status(400).json({
