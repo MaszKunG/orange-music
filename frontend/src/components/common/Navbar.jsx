@@ -2,14 +2,16 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Search, User, LogOut, ShieldAlert, UploadCloud, Heart, ListMusic,
-  ChevronDown, Music, Bell, Clock, CheckCircle2, XCircle
+  ChevronDown, Music, Bell, Clock, CheckCircle2, XCircle, Palette
 } from 'lucide-react';
 import OrangeLogo from './OrangeLogo';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { api, getFullMediaUrl } from '../../services/api';
 
 export default function Navbar() {
   const { user, isAuthenticated, logout, isAdmin, isUploader } = useAuth();
+  const { setIsThemeModalOpen, currentTheme } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
@@ -149,6 +151,19 @@ export default function Navbar() {
               )}
             </Link>
           )}
+
+          {/* ปุ่มปรับแต่งธีม & พื้นหลัง (Theme & Wallpaper Switcher) */}
+          <button
+            onClick={() => setIsThemeModalOpen(true)}
+            title="ปรับแต่งธีม & พื้นหลัง"
+            className="w-9 h-9 rounded-full bg-dark-card hover:bg-dark-elevated border border-dark-border flex items-center justify-center transition-all hover:scale-105 group relative"
+          >
+            <Palette className="w-4 h-4 text-orange-400 group-hover:rotate-12 transition-transform" />
+            <span 
+              className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border border-dark-surface shadow-sm"
+              style={{ backgroundColor: currentTheme.accent }}
+            />
+          </button>
 
           {/* Notification Bell */}
           {isAuthenticated && (isUploader || isAdmin) && (

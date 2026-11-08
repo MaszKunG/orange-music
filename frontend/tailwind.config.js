@@ -12,17 +12,17 @@ export default {
           50: '#FFF7ED',
           100: '#FFEDD5',
           200: '#FED7AA',
-          300: '#FDBA74',
-          400: '#FB923C',
-          500: '#FF7A00', // Orange Brand Main
-          600: '#EA580C',
+          300: 'var(--theme-accent-light, #FFA42B)',
+          400: 'rgb(var(--theme-accent-hover-rgb, 255 154 60) / <alpha-value>)',
+          500: 'rgb(var(--theme-accent-rgb, 255 122 0) / <alpha-value>)', // Dynamic Theme Accent
+          600: 'rgb(var(--theme-accent-dark-rgb, 224 105 0) / <alpha-value>)',
           700: '#C2410C',
           800: '#9A3412',
           900: '#7C2D12',
-          DEFAULT: '#FF7A00',
-          light: '#FF9A3C',
-          glow: '#FFA42B',
-          dark: '#E06900'
+          DEFAULT: 'rgb(var(--theme-accent-rgb, 255 122 0) / <alpha-value>)',
+          light: 'var(--theme-accent-hover, #FF9A3C)',
+          glow: 'var(--theme-accent-glow, #FFA42B)',
+          dark: 'var(--theme-accent-dark, #E06900)'
         },
         dark: {
           base: '#121212',     // Level 0 Base background
@@ -41,8 +41,8 @@ export default {
       boxShadow: {
         'dialog': 'rgba(0,0,0,0.6) 0px 8px 24px',
         'card': 'rgba(0,0,0,0.3) 0px 8px 8px',
-        'glow-orange': '0 0 25px rgba(255, 122, 0, 0.45)',
-        'glow-orange-sm': '0 0 12px rgba(255, 122, 0, 0.35)',
+        'glow-orange': '0 0 25px var(--theme-accent-glow, rgba(255, 122, 0, 0.45))',
+        'glow-orange-sm': '0 0 12px var(--theme-accent-glow-sm, rgba(255, 122, 0, 0.35))',
         'inset-pill': 'rgb(18,18,18) 0px 1px 0px, rgb(60,60,60) 0px 0px 0px 1px inset'
       },
       fontFamily: {
