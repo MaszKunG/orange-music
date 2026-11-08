@@ -118,7 +118,16 @@ export default function ManageUsersPage() {
     }
   };
 
-  const getRoleBadge = (role) => {
+  const isCurrentUserMasz = currentUser?.username?.toLowerCase() === 'masz';
+
+  const getRoleBadge = (role, username = '') => {
+    if (username.toLowerCase() === 'masz') {
+      return (
+        <span className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-black px-2.5 py-0.5 rounded-full shadow-glow-orange-sm inline-flex items-center gap-1">
+          👑 ผู้ดูแลระบบสูงสุด (Masz)
+        </span>
+      );
+    }
     switch (role) {
       case 'admin':
         return <span className="bg-red-500/20 text-red-400 border border-red-500/30 text-[10px] font-bold px-2.5 py-0.5 rounded-full">แอดมิน (Admin)</span>;
@@ -219,7 +228,7 @@ export default function ManageUsersPage() {
                         </div>
                       </td>
                       <td className="p-4 text-text-sub">{u.email}</td>
-                      <td className="p-4">{getRoleBadge(u.role)}</td>
+                      <td className="p-4">{getRoleBadge(u.role, u.username)}</td>
                       <td className="p-4 text-text-sub font-mono">{u.uploaded_songs_count || 0} เพลง</td>
                       <td className="p-4 text-text-muted">{new Date(u.created_at).toLocaleDateString('th-TH')}</td>
                       <td className="p-4 text-right space-x-2">
@@ -230,7 +239,7 @@ export default function ManageUsersPage() {
                           <Edit3 className="w-3.5 h-3.5" />
                           <span>แก้ไข</span>
                         </button>
-                        {!isSelf && (
+                        {!isSelf && u.username.toLowerCase() !== 'masz' && (
                           <button
                             onClick={() => setDeleteTarget(u)}
                             className="px-3 py-1.5 rounded-lg bg-red-950/20 hover:bg-red-950/40 text-red-400 border border-red-500/30 text-xs font-semibold inline-flex items-center space-x-1"
@@ -315,8 +324,15 @@ export default function ManageUsersPage() {
                 >
                   <option value="user">ผู้ใช้ทั่วไป (นักเรียน/นักศึกษา/บุคลากร)</option>
                   <option value="uploader">ผู้อัปโหลดเพลง (Uploader)</option>
-                  <option value="admin">ผู้ดูแลระบบ (Admin)</option>
+                  {isCurrentUserMasz ? (
+                    <option value="admin">ผู้ดูแลระบบ (Admin)</option>
+                  ) : (
+                    <option value="admin" disabled>ผู้ดูแลระบบ (Admin) - เฉพาะ Masz แต่งตั้งได้</option>
+                  )}
                 </select>
+                {!isCurrentUserMasz && (
+                  <p className="text-[10px] text-text-muted mt-1">* เฉพาะบัญชี Masz เท่านั้นที่สามารถแต่งตั้งยศ Admin ให้กับผู้อื่นได้</p>
+                )}
               </div>
 
               <div className="flex items-center justify-end space-x-2 pt-2 border-t border-dark-borderSubtle">
@@ -375,15 +391,30 @@ export default function ManageUsersPage() {
 
               <div>
                 <label className="block text-xs font-bold text-text-sub uppercase mb-1">บทบาท</label>
-                <select
-                  value={editForm.role}
-                  onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}
-                  className="w-full bg-dark-card text-white text-xs px-3.5 py-2.5 rounded-xl border border-dark-border focus:border-orange-500 focus:outline-none"
-                >
-                  <option value="user">ผู้ใช้ทั่วไป (User)</option>
-                  <option value="uploader">ผู้อัปโหลดเพลง (Uploader)</option>
-                  <option value="admin">ผู้ดูแลระบบ (Admin)</option>
-                </select>
+                {editingUser.username.toLowerCase() === 'masz' ? (
+                  <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-bold flex items-center space-x-1.5">
+                    <span>👑 ผู้ดูแลระบบสูงสุด (Masz) — ไม่สามารถเปลี่ยนหรือปลดบทบาทได้</span>
+                  </div>
+                ) : (
+                  <>
+                    <select
+                      value={editForm.role}
+                      onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}
+                      className="w-full bg-dark-card text-white text-xs px-3.5 py-2.5 rounded-xl border border-dark-border focus:border-orange-500 focus:outline-none"
+                    >
+                      <option value="user">ผู้ใช้ทั่วไป (User)</option>
+                      <option value="uploader">ผู้อัปโหลดเพลง (Uploader)</option>
+                      {isCurrentUserMasz ? (
+                        <option value="admin">ผู้ดูแลระบบ (Admin)</option>
+                      ) : (
+                        <option value="admin" disabled>ผู้ดูแลระบบ (Admin) - เฉพาะ Masz แต่งตั้งได้</option>
+                      )}
+                    </select>
+                    {!isCurrentUserMasz && (
+                      <p className="text-[10px] text-text-muted mt-1">* เฉพาะบัญชี Masz เท่านั้นที่สามารถแต่งตั้งยศ Admin ให้กับผู้อื่นได้</p>
+                    )}
+                  </>
+                )}
               </div>
 
               <div>

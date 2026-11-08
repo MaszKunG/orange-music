@@ -261,6 +261,15 @@ async function createUserByAdmin(req, res) {
       return res.status(400).json({ success: false, message: 'บทบาทผู้ใช้ไม่ถูกต้อง' });
     }
 
+    // ข้อกำหนดสิทธิ์: เฉพาะ Masz เท่านั้นที่สามารถสร้างบัญชีที่มียศ Admin ได้
+    const isMasz = req.user && req.user.username && req.user.username.toLowerCase() === 'masz';
+    if (role === 'admin' && !isMasz) {
+      return res.status(403).json({
+        success: false,
+        message: 'เฉพาะผู้ดูแลระบบ Masz เท่านั้นที่สามารถแต่งตั้งยศ Admin ให้กับผู้อื่นได้'
+      });
+    }
+
     const existing = await db.get(
       `SELECT id FROM users WHERE username = ? OR email = ?`,
       [username.trim(), email.trim().toLowerCase()]
@@ -311,6 +320,26 @@ async function updateUserByAdmin(req, res) {
     let updatedRole = role && ['admin', 'uploader', 'user'].includes(role) ? role : user.role;
     let updatedPasswordHash = user.password_hash;
 
+    // ข้อกำหนดสิทธิ์พิเศษสำหรับ Masz:
+    const isMasz = req.user && req.user.username && req.user.username.toLowerCase() === 'masz';
+    const isTargetMasz = user.username.toLowerCase() === 'masz';
+
+    // 1. ห้ามใครก็ตามปลดยศหรือเปลี่ยนบทบาทของ Masz
+    if (isTargetMasz && updatedRole !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'ไม่อนุญาตให้ปลดยศหรือเปลี่ยนบทบาทของผู้ดูแลระบบ Masz'
+      });
+    }
+
+    // 2. เฉพาะ Masz เท่านั้นที่สามารถแต่งตั้งยศ Admin ให้คนอื่น หรือถอดยศ Admin ได้
+    if ((updatedRole === 'admin' || user.role === 'admin') && !isMasz && user.role !== updatedRole) {
+      return res.status(403).json({
+        success: false,
+        message: 'เฉพาะผู้ดูแลระบบ Masz เท่านั้นที่สามารถแต่งตั้งหรือถอดยศ Admin ให้กับผู้อื่นได้'
+      });
+    }
+
     if (password && password.length >= 6) {
       updatedPasswordHash = await bcrypt.hash(password, 10);
     }
@@ -355,6 +384,13 @@ async function deleteUserByAdmin(req, res) {
     const user = await db.get(`SELECT id, username FROM users WHERE id = ?`, [targetUserId]);
     if (!user) {
       return res.status(404).json({ success: false, message: 'ไม่พบผู้ใช้งานที่ต้องการลบ' });
+    }
+
+    if (user.username.toLowerCase() === 'masz') {
+      return res.status(403).json({
+        success: false,
+        message: 'ไม่อนุญาตให้ลบบัญชีผู้ดูแลระบบ Masz'
+      });
     }
 
     await db.run(`DELETE FROM users WHERE id = ?`, [targetUserId]);

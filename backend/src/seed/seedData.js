@@ -136,6 +136,30 @@ async function initDatabase() {
     console.warn('Image repair note:', repairErr.message);
   }
 
+  // แต่งตั้งบัญชี Masz เป็น Admin และปรับให้เฉพาะ Masz เท่านั้นที่เป็น Admin เริ่มต้น
+  try {
+    const maszUser = await db.get(`SELECT id, role FROM users WHERE LOWER(username) = 'masz'`);
+    if (maszUser) {
+      if (maszUser.role !== 'admin') {
+        await db.run(`UPDATE users SET role = 'admin' WHERE id = ?`, [maszUser.id]);
+        console.log('👑 อัปเดตยศ Masz เป็น Admin เรียบร้อย');
+      }
+    } else {
+      // สร้างบัญชี Masz ขึ้นเป็น Admin สูงสุด
+      const maszPassword = await bcrypt.hash('masz1234', 10);
+      await db.run(`
+        INSERT INTO users (username, email, password_hash, full_name, role, avatar)
+        VALUES (?, ?, ?, ?, 'admin', ?)
+      `, ['Masz', 'masz@orange.music', maszPassword, 'Masz', 'https://api.dicebear.com/7.x/bottts/svg?seed=MaszAdmin']);
+      console.log('👑 แต่งตั้งบัญชี Masz เป็น Admin เรียบร้อย (username: Masz)');
+    }
+
+    // ปรับลดบทบาทบัญชีเดโม 'admin' เดิมให้เป็น 'user' ทั่วไป เพื่อให้เฉพาะ Masz เป็น Admin
+    await db.run(`UPDATE users SET role = 'user' WHERE username = 'admin'`);
+  } catch (maszErr) {
+    console.warn('Masz admin setup note:', maszErr.message);
+  }
+
   // ตรวจสอบว่ามีผู้ใช้แอดมินหรือยัง
   const existingAdmin = await db.get(`SELECT id FROM users WHERE role = 'admin' LIMIT 1`);
   if (!existingAdmin) {

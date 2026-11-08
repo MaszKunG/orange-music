@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { LogIn, Sparkles, User, ShieldCheck, Music } from 'lucide-react';
+import { LogIn } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import OrangeLogo from '../components/common/OrangeLogo';
 
@@ -30,12 +30,6 @@ export default function LoginPage() {
     }
   };
 
-  // ทางลัด Demo Login
-  const handleQuickLogin = (demoIdentifier, demoPass) => {
-    setUsernameOrEmail(demoIdentifier);
-    setPassword(demoPass);
-  };
-
   return (
     <div className="min-h-[80vh] flex flex-col justify-center items-center px-4 py-12">
       <div className="w-full max-w-md bg-dark-surface border border-dark-border rounded-3xl p-8 shadow-dialog space-y-6">
@@ -59,7 +53,7 @@ export default function LoginPage() {
               type="text"
               value={usernameOrEmail}
               onChange={(e) => setUsernameOrEmail(e.target.value)}
-              placeholder="เช่น student@orange.music หรือ admin"
+              placeholder="กรอกชื่อผู้ใช้ หรือ อีเมลของคุณ"
               required
               className="w-full bg-dark-card text-white text-sm px-4 py-3 rounded-xl border border-dark-border focus:border-orange-500 focus:outline-none transition-colors"
             />
@@ -89,47 +83,7 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {/* ปุ่มทางลัด Demo Login สำหรับทดสอบระบบ */}
-        <div className="pt-2 border-t border-dark-borderSubtle space-y-3">
-          <p className="text-center text-[11px] font-bold text-text-muted uppercase tracking-wider flex items-center justify-center space-x-1">
-            <Sparkles className="w-3.5 h-3.5 text-orange-500" />
-            <span>คลิกเดียวเข้าสู่ระบบเพื่อทดลองใช้งาน</span>
-          </p>
-
-          <div className="grid grid-cols-3 gap-2">
-            <button
-              type="button"
-              onClick={() => handleQuickLogin('admin@orange.music', 'admin1234')}
-              className="p-2.5 rounded-xl bg-red-950/20 hover:bg-red-950/40 border border-red-500/30 text-center transition-colors group"
-            >
-              <ShieldCheck className="w-4 h-4 text-red-400 mx-auto mb-1 group-hover:scale-110 transition-transform" />
-              <p className="text-[11px] font-bold text-red-400">แอดมิน</p>
-              <span className="text-[9px] text-text-muted block">Admin</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleQuickLogin('uploader@orange.music', 'uploader1234')}
-              className="p-2.5 rounded-xl bg-orange-950/20 hover:bg-orange-950/40 border border-orange-500/30 text-center transition-colors group"
-            >
-              <Music className="w-4 h-4 text-orange-400 mx-auto mb-1 group-hover:scale-110 transition-transform" />
-              <p className="text-[11px] font-bold text-orange-400">ผู้อัปโหลด</p>
-              <span className="text-[9px] text-text-muted block">Uploader</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleQuickLogin('student@orange.music', 'user1234')}
-              className="p-2.5 rounded-xl bg-emerald-950/20 hover:bg-emerald-950/40 border border-emerald-500/30 text-center transition-colors group"
-            >
-              <User className="w-4 h-4 text-emerald-400 mx-auto mb-1 group-hover:scale-110 transition-transform" />
-              <p className="text-[11px] font-bold text-emerald-400">ผู้ใช้ทั่วไป</p>
-              <span className="text-[9px] text-text-muted block">Student</span>
-            </button>
-          </div>
-        </div>
-
-        <p className="text-center text-xs text-text-sub">
+        <p className="text-center text-xs text-text-sub pt-2 border-t border-dark-borderSubtle">
           ยังไม่มีบัญชีใช่หรือไม่?{' '}
           <Link to="/register" className="text-orange-400 font-bold hover:underline">
             สมัครสมาชิกฟรี
