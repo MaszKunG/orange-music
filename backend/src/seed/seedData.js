@@ -83,6 +83,14 @@ async function initDatabase() {
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
       FOREIGN KEY (song_id) REFERENCES songs(id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS song_audio (
+      song_id INTEGER PRIMARY KEY,
+      data BLOB NOT NULL,
+      mime TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (song_id) REFERENCES songs(id) ON DELETE CASCADE
+    );
   `);
 
   // ตรวจสอบ Auto-migration เผื่อกรณีฐานข้อมูลเดิมยังไม่มีคอลัมน์ status

@@ -71,7 +71,27 @@ async function saveUploadedFile(file, folder) {
     }
   }
 
-  // โหมด Local Storage (ค่าเริ่มต้น)
+  // โหมด Base64 Data URL สำหรับรูปภาพ (เมื่อไม่ได้ใช้ Cloudflare R2)
+  // ช่วยให้รูปภาพหน้าปกและ Avatar ถูกบันทึกลงในฐานข้อมูล Turso โดยตรงถาวร 100%
+  // ไม่สูญหายอีกต่อไปแม้ Render.com จะทำการรีสตาร์ทหรือ Deploy ใหม่
+  if (folder === 'covers' || folder === 'avatars' || (file && (file.fieldname === 'cover' || file.fieldname === 'avatar'))) {
+    try {
+      if (fs.existsSync(file.path)) {
+        const fileBuffer = fs.readFileSync(file.path);
+        const mimeType = file.mimetype || 'image/jpeg';
+        const base64Data = fileBuffer.toString('base64');
+        const dataUrl = `data:${mimeType};base64,${base64Data}`;
+
+        // ลบไฟล์ชั่วคราวบนดิสก์
+        fs.unlink(file.path, () => {});
+        return dataUrl;
+      }
+    } catch (readErr) {
+      console.error('❌ ไม่สามารถแปลงรูปภาพเป็น Data URL ได้:', readErr.message);
+    }
+  }
+
+  // โหมด Local Storage (สำหรับเสียง หรือกรณีอื่น)
   return `/uploads/${folder}/${file.filename}`;
 }
 

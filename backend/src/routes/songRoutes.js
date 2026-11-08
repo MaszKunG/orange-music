@@ -10,6 +10,9 @@ router.get('/', optionalToken, songController.getAllSongs);
 // ดูรายละเอียดเพลงเดี่ยว
 router.get('/:id', optionalToken, songController.getSongById);
 
+// สตรีมไฟล์เสียง (รองรับการดึงจาก Turso เมื่อ Render รีสตาร์ท)
+router.get('/:id/stream', songController.streamSongAudio);
+
 // อัปโหลดเพลงใหม่ (เฉพาะ Uploader หรือ Admin)
 router.post('/', authenticateToken, requireRole(['uploader', 'admin']), uploadSongFiles, songController.uploadSong);
 

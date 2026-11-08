@@ -5,7 +5,7 @@ const API_BASE = `${rawBase.replace(/\/$/, '')}/api`;
 
 export function getFullMediaUrl(path) {
   if (!path) return DEFAULT_COVER;
-  if (path.startsWith('http://') || path.startsWith('https://')) {
+  if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:')) {
     return path;
   }
   const base = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '');

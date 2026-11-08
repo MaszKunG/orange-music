@@ -180,6 +180,21 @@ async function uploadSong(req, res) {
       reviewedAt
     ]);
 
+    // บันทึกไฟล์เสียงลงฐานข้อมูล Turso เพื่อป้องกันไฟล์หายเมื่อ Render รีสตาร์ท
+    if (audioFile && fs.existsSync(audioFile.path)) {
+      try {
+        const audioBuffer = fs.readFileSync(audioFile.path);
+        await db.run(
+          `INSERT OR REPLACE INTO song_audio (song_id, data, mime) VALUES (?, ?, ?)`,
+          [result.id, audioBuffer, audioFile.mimetype || 'audio/mpeg']
+        );
+        // กำหนด audio_path ให้สตรีมผ่าน API ถาวร
+        await db.run(`UPDATE songs SET audio_path = ? WHERE id = ?`, [`/api/songs/${result.id}/stream`, result.id]);
+      } catch (audioErr) {
+        console.warn('Audio DB backup note:', audioErr.message);
+      }
+    }
+
     const newSong = await db.get(`SELECT * FROM songs WHERE id = ?`, [result.id]);
 
     return res.status(201).json({
@@ -221,8 +236,24 @@ async function updateSong(req, res) {
     let updatedAudio = song.audio_path;
     let audioChanged = false;
     if (req.files && req.files.audio && req.files.audio.length > 0) {
-      updatedAudio = await saveUploadedFile(req.files.audio[0], 'audio');
-      audioChanged = true;
+      const aFile = req.files.audio[0];
+      if (fs.existsSync(aFile.path)) {
+        try {
+          const audioBuffer = fs.readFileSync(aFile.path);
+          await db.run(
+            `INSERT OR REPLACE INTO song_audio (song_id, data, mime) VALUES (?, ?, ?)`,
+            [songId, audioBuffer, aFile.mimetype || 'audio/mpeg']
+          );
+          updatedAudio = `/api/songs/${songId}/stream`;
+          audioChanged = true;
+        } catch (audioErr) {
+          console.warn('Audio update DB note:', audioErr.message);
+        }
+      }
+      if (!audioChanged) {
+        updatedAudio = await saveUploadedFile(aFile, 'audio');
+        audioChanged = true;
+      }
     }
 
     // ข้อกำหนด 2.6: ถ้าผู้อัปโหลดแก้ไขเพลง ให้สถานะกลับเป็น pending เพื่อตรวจใหม่ (ยกเว้นแอดมินแก้ไข)
@@ -346,11 +377,46 @@ async function deleteSong(req, res) {
   }
 }
 
+// สตรีมไฟล์เสียง (รองรับทั้งไฟล์บนดิสก์ และดึงจากฐานข้อมูล Turso หากเซิร์ฟเวอร์เพิ่งรีสตาร์ท)
+async function streamSongAudio(req, res) {
+  try {
+    const songId = req.params.id;
+    const song = await db.get(`SELECT id, audio_path FROM songs WHERE id = ?`, [songId]);
+    if (!song) {
+      return res.status(404).json({ success: false, message: 'ไม่พบเพลง' });
+    }
+
+    // 1. ถ้ามีไฟล์บนดิสก์จริง
+    if (song.audio_path && song.audio_path.startsWith('/uploads/')) {
+      const diskPath = path.resolve(__dirname, '../../', song.audio_path.replace(/^\//, ''));
+      if (fs.existsSync(diskPath)) {
+        return res.sendFile(diskPath);
+      }
+    }
+
+    // 2. ถ้าไฟล์บนดิสก์หายไป (เพราะ Render รีสตาร์ท) -> สตรีมตรงจากฐานข้อมูล Turso ทันที!
+    const audioRecord = await db.get(`SELECT data, mime FROM song_audio WHERE song_id = ?`, [songId]);
+    if (audioRecord && audioRecord.data) {
+      const buffer = Buffer.from(audioRecord.data);
+      res.setHeader('Content-Type', audioRecord.mime || 'audio/mpeg');
+      res.setHeader('Content-Length', buffer.length);
+      res.setHeader('Accept-Ranges', 'bytes');
+      return res.send(buffer);
+    }
+
+    return res.status(404).json({ success: false, message: 'ไม่พบไฟล์เสียง' });
+  } catch (err) {
+    console.error('Stream audio error:', err);
+    return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการสตรีมเพลง' });
+  }
+}
+
 module.exports = {
   getAllSongs,
   getSongById,
   uploadSong,
   updateSong,
   resubmitSong,
-  deleteSong
+  deleteSong,
+  streamSongAudio
 };
