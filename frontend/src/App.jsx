@@ -63,17 +63,17 @@ function ProtectedRoute({ children, allowedRoles }) {
 
 function MainLayout() {
   return (
-    <div className="min-h-screen text-white flex flex-col font-sans selection:bg-orange-500 selection:text-black relative">
+    <div className="min-h-screen text-white flex flex-col font-sans selection:bg-orange-500 selection:text-black relative w-full overflow-x-hidden max-w-[100vw]">
       {/* Background Wallpaper System */}
       <WallpaperBackground />
 
       {/* Main Content */}
-      <div className="relative z-10 flex flex-col min-h-screen">
+      <div className="relative z-10 flex flex-col min-h-screen w-full overflow-x-hidden">
         <Navbar />
 
-        <div className="flex-1 flex max-w-7xl w-full mx-auto">
+        <div className="flex-1 flex max-w-7xl w-full mx-auto overflow-x-hidden">
           <Sidebar />
-          <main className="flex-1 p-4 lg:p-8 overflow-y-auto max-h-[calc(100vh-65px)]">
+          <main className="flex-1 p-3.5 sm:p-6 lg:p-8 overflow-y-auto max-h-[calc(100vh-60px)] pb-32 sm:pb-24 w-full min-w-0">
             <Routes>
               {/* สาธารณะ */}
               <Route path="/" element={<LandingHomePage />} />

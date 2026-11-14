@@ -59,38 +59,38 @@ export default function LandingHomePage() {
   return (
     <div className="space-y-10 pb-20">
       {/* 1. Hero Section: Dark Immersive Theme + Vibrant Orange Glow */}
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#241305] via-dark-surface to-dark-base border border-orange-500/30 p-6 sm:p-10 lg:p-12 shadow-dialog">
+      <section className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-br from-[#241305] via-dark-surface to-dark-base border border-orange-500/30 p-4 sm:p-8 lg:p-12 shadow-dialog">
         {/* แสงเรืองแสงสีส้มแบบ Ambient Glow ด้านหลัง */}
-        <div className="absolute -top-24 -right-24 w-96 h-96 bg-orange-500/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 -left-24 w-80 h-80 bg-orange-600/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -top-24 -right-24 w-72 sm:w-96 h-72 sm:h-96 bg-orange-500/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-24 -left-24 w-60 sm:w-80 h-60 sm:h-80 bg-orange-600/15 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+        <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-center">
           {/* ข้อมูลฝั่งซ้าย */}
-          <div className="lg:col-span-7 space-y-5">
-            <div className="inline-flex items-center space-x-2 bg-orange-500/15 border border-orange-500/30 px-3.5 py-1.5 rounded-full text-orange-400 text-xs font-bold uppercase tracking-wider">
-              <Sparkles className="w-4 h-4 text-orange-500" />
+          <div className="lg:col-span-7 space-y-4 sm:space-y-5">
+            <div className="inline-flex items-center space-x-2 bg-orange-500/15 border border-orange-500/30 px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full text-orange-400 text-[10px] sm:text-xs font-bold uppercase tracking-wider">
+              <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-orange-500" />
               <span>ฟรี 100% สำหรับการศึกษา • ไม่มีโฆษณาคั่น</span>
             </div>
 
-            <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight leading-tight">
+            <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">
               สดใสทุกจังหวะ <br className="hidden sm:inline" />
               ไปกับ <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 via-orange-500 to-amber-300">Orange Music</span> 🍊
             </h1>
 
-            <p className="text-text-sub text-sm sm:text-base leading-relaxed max-w-xl">
+            <p className="text-text-sub text-xs sm:text-sm md:text-base leading-relaxed max-w-xl">
               พื้นที่ฟังเพลงออนไลน์ฟรีที่ดีที่สุดสำหรับนักเรียน นักศึกษา และบุคลากรทางการศึกษา 
               รวมเพลงสำหรับเพิ่มสมาธิในการอ่านหนังสือ ดนตรีสร้างแรงบันดาลใจ 
               และพื้นที่ปล่อยของสำหรับศิลปินหน้าใหม่
             </p>
 
             {/* ปุ่ม CTA คู่ สไตล์ Pill Geometry */}
-            <div className="flex flex-wrap items-center gap-3 pt-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3 pt-2">
               {featuredSong && (
                 <button
                   onClick={() => playSong(featuredSong, songs)}
-                  className="inline-flex items-center space-x-2.5 px-6 py-3.5 rounded-full bg-orange-500 hover:bg-orange-400 text-black font-bold text-sm shadow-glow-orange transition-all transform hover:scale-105 active:scale-95"
+                  className="inline-flex items-center justify-center space-x-2.5 px-6 py-3 rounded-full bg-orange-500 hover:bg-orange-400 text-black font-bold text-xs sm:text-sm shadow-glow-orange transition-all transform hover:scale-105 active:scale-95"
                 >
-                  <Play className="w-5 h-5 fill-black" />
+                  <Play className="w-4 h-4 sm:w-5 sm:h-5 fill-black" />
                   <span>เริ่มฟังเพลงฟรีทันที</span>
                 </button>
               )}
@@ -98,7 +98,7 @@ export default function LandingHomePage() {
               {!isAuthenticated ? (
                 <Link
                   to="/register"
-                  className="inline-flex items-center space-x-2 px-6 py-3.5 rounded-full bg-dark-card hover:bg-dark-elevated text-white border border-dark-border hover:border-text-muted font-semibold text-sm transition-all"
+                  className="inline-flex items-center justify-center space-x-2 px-6 py-3 rounded-full bg-dark-card hover:bg-dark-elevated text-white border border-dark-border hover:border-text-muted font-semibold text-xs sm:text-sm transition-all"
                 >
                   <span>สมัครสมาชิกร่วมชุมชน</span>
                   <ArrowRight className="w-4 h-4" />
@@ -106,7 +106,7 @@ export default function LandingHomePage() {
               ) : isUploader ? (
                 <Link
                   to="/uploader/upload"
-                  className="inline-flex items-center space-x-2 px-6 py-3.5 rounded-full bg-dark-card hover:bg-dark-elevated text-orange-400 border border-orange-500/40 font-semibold text-sm transition-all"
+                  className="inline-flex items-center justify-center space-x-2 px-6 py-3 rounded-full bg-dark-card hover:bg-dark-elevated text-orange-400 border border-orange-500/40 font-semibold text-xs sm:text-sm transition-all"
                 >
                   <UploadCloud className="w-4 h-4" />
                   <span>อัปโหลดผลงานเพลง</span>
@@ -115,16 +115,16 @@ export default function LandingHomePage() {
             </div>
 
             {/* จุดเด่น 3 ข้อ */}
-            <div className="grid grid-cols-3 gap-3 pt-4 border-t border-dark-borderSubtle text-xs text-text-sub">
-              <div className="flex items-center space-x-1.5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 pt-3 border-t border-dark-borderSubtle text-xs text-text-sub">
+              <div className="flex items-center space-x-2">
                 <BookOpen className="w-4 h-4 text-orange-500 flex-shrink-0" />
                 <span>เพลงเพื่อการเรียน</span>
               </div>
-              <div className="flex items-center space-x-1.5">
+              <div className="flex items-center space-x-2">
                 <Headphones className="w-4 h-4 text-orange-500 flex-shrink-0" />
                 <span>เสียงคุณภาพสูง</span>
               </div>
-              <div className="flex items-center space-x-1.5">
+              <div className="flex items-center space-x-2">
                 <ShieldCheck className="w-4 h-4 text-orange-500 flex-shrink-0" />
                 <span>ปลอดภัย ไร้ค่าใช้จ่าย</span>
               </div>

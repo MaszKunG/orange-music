@@ -3,9 +3,9 @@ import { Link } from 'react-router-dom';
 
 export default function OrangeLogo({ className = 'h-9', showText = true, size = 34 }) {
   return (
-    <Link to="/" className={`flex items-center space-x-2.5 group cursor-pointer ${className}`}>
+    <Link to="/" className={`flex items-center space-x-2 group cursor-pointer flex-shrink-0 select-none ${className}`}>
       {/* SVG โลโก้ผลส้มผสมโน้ตดนตรี */}
-      <div className="relative flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
+      <div className="relative flex items-center justify-center transition-transform duration-300 group-hover:scale-105 flex-shrink-0">
         <svg
           width={size}
           height={size}
@@ -47,11 +47,11 @@ export default function OrangeLogo({ className = 'h-9', showText = true, size = 
 
       {showText && (
         <div className="flex flex-col">
-          <div className="flex items-center space-x-1">
-            <span className="font-bold tracking-tight text-lg text-white font-sans group-hover:text-orange-400 transition-colors">
+          <div className="flex items-center space-x-1 whitespace-nowrap">
+            <span className="font-bold tracking-tight text-base sm:text-lg text-white font-sans group-hover:text-orange-400 transition-colors">
               Orange<span className="text-orange-500">Music</span>
             </span>
-            <span className="text-[10px] font-semibold uppercase tracking-wider bg-orange-500/20 text-orange-400 px-1.5 py-0.5 rounded-full border border-orange-500/30">
+            <span className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider bg-orange-500/20 text-orange-400 px-1.5 py-0.5 rounded-full border border-orange-500/30">
               ส้ม
             </span>
           </div>
