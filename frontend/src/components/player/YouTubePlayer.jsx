@@ -21,13 +21,15 @@ const YouTubePlayer = () => {
     setIsBuffering,
   } = usePlayer();
 
-  // Keep refs for callbacks so player events always access the latest values
+  // Keep refs for callbacks so player events always access the latest functions and state
   const isLoopRef = useRef(isLoop);
   isLoopRef.current = isLoop;
   const currentSongRef = useRef(currentSong);
   currentSongRef.current = currentSong;
   const isPlayingRef = useRef(isPlaying);
   isPlayingRef.current = isPlaying;
+  const nextSongRef = useRef(nextSong);
+  nextSongRef.current = nextSong;
 
   useEffect(() => {
     let player = null;
@@ -89,8 +91,10 @@ const YouTubePlayer = () => {
                   event.target.seekTo(0);
                   event.target.playVideo();
                 } else {
-                  setIsPlaying(false);
-                  nextSong();
+                  // เพลงจบแล้ว เลื่อนไปเพลงถัดไปในคิวทันที
+                  if (typeof nextSongRef.current === 'function') {
+                    nextSongRef.current();
+                  }
                 }
                 break;
 
@@ -100,8 +104,13 @@ const YouTubePlayer = () => {
           },
           onError: (event) => {
             console.error('YouTube Player Error:', event.data);
-            setIsPlaying(false);
             setIsBuffering(false);
+            // ถ้าเล่นเพลงนี้ไม่ได้ (เช่น ติดลิขสิทธิ์ฝังไม่ได้) ให้ข้ามไปเพลงถัดไป
+            if (typeof nextSongRef.current === 'function') {
+              setTimeout(() => {
+                nextSongRef.current();
+              }, 1500);
+            }
           },
         },
       });

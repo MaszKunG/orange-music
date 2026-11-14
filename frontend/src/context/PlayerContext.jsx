@@ -24,6 +24,24 @@ export function PlayerProvider({ children }) {
   const [queueIndex, setQueueIndex] = useState(-1);
   const { showToast } = useToast();
 
+  // Refs เพื่อป้องกัน Stale Closures ใน Event Listeners และ Timers
+  const queueRef = useRef(queue);
+  queueRef.current = queue;
+  const queueIndexRef = useRef(queueIndex);
+  queueIndexRef.current = queueIndex;
+  const isLoopRef = useRef(isLoop);
+  isLoopRef.current = isLoop;
+  const isShuffleRef = useRef(isShuffle);
+  isShuffleRef.current = isShuffle;
+  const currentSongRef = useRef(currentSong);
+  currentSongRef.current = currentSong;
+  const isPlayingRef = useRef(isPlaying);
+  isPlayingRef.current = isPlaying;
+  const currentTimeRef = useRef(currentTime);
+  currentTimeRef.current = currentTime;
+  const durationRef = useRef(duration);
+  durationRef.current = duration;
+
   const isYouTubeSong = (song) => {
     if (!song) return false;
     return (
@@ -56,7 +74,11 @@ export function PlayerProvider({ children }) {
             const cur = ytPlayerRef.current.getCurrentTime() || 0;
             const dur = ytPlayerRef.current.getDuration() || 0;
             setCurrentTime(cur);
-            if (dur > 0) setDuration(dur);
+            currentTimeRef.current = cur;
+            if (dur > 0) {
+              setDuration(dur);
+              durationRef.current = dur;
+            }
           } catch (e) {}
         }
       }, 500);
@@ -64,20 +86,23 @@ export function PlayerProvider({ children }) {
     }
   }, [currentSong, isPlaying]);
 
-  // ตั้งค่า HTML5 audio element เมื่อ mount
+  // ตั้งค่า HTML5 audio element
   useEffect(() => {
     const audio = audioRef.current;
     audio.volume = volume;
     audio.preload = 'auto';
 
     const onTimeUpdate = () => {
-      if (!isYouTubeSong(currentSong)) {
+      if (!isYouTubeSong(currentSongRef.current)) {
         setCurrentTime(audio.currentTime);
+        currentTimeRef.current = audio.currentTime;
       }
     };
     const onLoadedMetadata = () => {
-      if (!isYouTubeSong(currentSong)) {
-        setDuration(audio.duration || 0);
+      if (!isYouTubeSong(currentSongRef.current)) {
+        const dur = audio.duration || 0;
+        setDuration(dur);
+        durationRef.current = dur;
         setIsBuffering(false);
       }
     };
@@ -85,11 +110,12 @@ export function PlayerProvider({ children }) {
     const onPlaying = () => {
       setIsBuffering(false);
       setIsPlaying(true);
+      isPlayingRef.current = true;
     };
     const onCanPlay = () => setIsBuffering(false);
     const onEnded = () => {
       setIsBuffering(false);
-      if (isLoop) {
+      if (isLoopRef.current) {
         audio.currentTime = 0;
         audio.play().catch(() => {});
       } else {
@@ -100,6 +126,7 @@ export function PlayerProvider({ children }) {
       console.warn('Audio play error:', e);
       setIsBuffering(false);
       setIsPlaying(false);
+      isPlayingRef.current = false;
     };
 
     audio.addEventListener('timeupdate', onTimeUpdate);
@@ -119,64 +146,111 @@ export function PlayerProvider({ children }) {
       audio.removeEventListener('ended', onEnded);
       audio.removeEventListener('error', onError);
     };
-  }, [isLoop, currentSong]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // เล่นเพลงเดี่ยว หรือเริ่มเล่นจากเพลย์ลิสต์ (รองรับทั้งไฟล์และ YouTube)
-  const playSong = async (song, playlist = null) => {
+  const playSong = async (song, playlist = null, forceRestart = false) => {
     if (!song) return;
 
     const audio = audioRef.current;
     const isYt = isYouTubeSong(song);
 
     // ถ้ากดเล่นเพลงเดิมที่กำลังเล่นอยู่
-    if (currentSong?.id === song.id) {
-      if (isPlaying) {
+    if (currentSongRef.current?.id === song.id && !forceRestart) {
+      const isAtEnd = durationRef.current > 0 && currentTimeRef.current >= durationRef.current - 1;
+      if (isAtEnd) {
+        seek(0);
+        if (isYt) {
+          try {
+            ytPlayerRef.current?.seekTo(0, true);
+            ytPlayerRef.current?.playVideo();
+          } catch (e) {}
+        } else {
+          audio.currentTime = 0;
+          audio.play().then(() => {
+            setIsPlaying(true);
+            isPlayingRef.current = true;
+          }).catch(console.error);
+        }
+        setIsPlaying(true);
+        isPlayingRef.current = true;
+        return;
+      }
+
+      if (isPlayingRef.current) {
         if (isYt) {
           try { ytPlayerRef.current?.pauseVideo(); } catch (e) {}
         } else {
           audio.pause();
         }
         setIsPlaying(false);
+        isPlayingRef.current = false;
       } else {
         if (isYt) {
           try { ytPlayerRef.current?.playVideo(); } catch (e) {}
           setIsPlaying(true);
+          isPlayingRef.current = true;
         } else {
-          audio.play().then(() => setIsPlaying(true)).catch(console.error);
+          audio.play().then(() => {
+            setIsPlaying(true);
+            isPlayingRef.current = true;
+          }).catch(console.error);
         }
       }
       return;
     }
 
-    // เซ็ตคิวเพลงใหม่ถ้าส่ง playlist มา
-    if (playlist && Array.isArray(playlist)) {
+    // เซ็ตคิวเพลงใหม่ (ตรวจสอบ playlist ว่ามีข้อมูลจริง)
+    let newQueue = queueRef.current;
+    if (playlist && Array.isArray(playlist) && playlist.length > 0) {
+      newQueue = playlist;
       setQueue(playlist);
+      queueRef.current = playlist;
       const index = playlist.findIndex((s) => s.id === song.id);
-      setQueueIndex(index !== -1 ? index : 0);
-    } else if (queue.length === 0 || !queue.some((s) => s.id === song.id)) {
-      setQueue([song]);
+      const newIdx = index !== -1 ? index : 0;
+      setQueueIndex(newIdx);
+      queueIndexRef.current = newIdx;
+    } else if (!newQueue || newQueue.length === 0 || !newQueue.some((s) => s.id === song.id)) {
+      newQueue = [song];
+      setQueue(newQueue);
+      queueRef.current = newQueue;
       setQueueIndex(0);
+      queueIndexRef.current = 0;
+
+      // โหลดเพลงทั้งหมดมาต่อคิวอัตโนมัติ เพื่อให้ฟังเพลงต่อเนื่องได้ไม่มีสะดุด
+      api.get('/songs?limit=50').then((res) => {
+        if (res.success && res.songs && res.songs.length > 1) {
+          const others = res.songs.filter((s) => s.id !== song.id);
+          const autoQueue = [song, ...others];
+          setQueue(autoQueue);
+          queueRef.current = autoQueue;
+        }
+      }).catch(() => {});
     } else {
-      const idx = queue.findIndex((s) => s.id === song.id);
-      setQueueIndex(idx !== -1 ? idx : 0);
+      const idx = newQueue.findIndex((s) => s.id === song.id);
+      const newIdx = idx !== -1 ? idx : 0;
+      setQueueIndex(newIdx);
+      queueIndexRef.current = newIdx;
     }
 
     setCurrentSong(song);
+    currentSongRef.current = song;
     setIsBuffering(true);
     setCurrentTime(0);
+    currentTimeRef.current = 0;
 
     if (isYt) {
-      // กรณีเพลง YouTube: หยุด HTML5 Audio แล้วส่ง Video ID ให้ YouTube Player
       audio.pause();
       audio.src = '';
 
       const vid = getYouTubeId(song);
       if (vid) {
-        if (ytPlayerRef.current && ytPlayerRef.current.loadVideoById) {
+        if (ytPlayerRef.current && typeof ytPlayerRef.current.loadVideoById === 'function') {
           try {
             ytPlayerRef.current.loadVideoById(vid);
             ytPlayerRef.current.playVideo();
             setIsPlaying(true);
+            isPlayingRef.current = true;
             setIsBuffering(false);
           } catch (ytErr) {
             console.warn('YouTube load error:', ytErr);
@@ -185,7 +259,6 @@ export function PlayerProvider({ children }) {
       }
       api.get(`/songs/${song.id}`).catch(() => {});
     } else {
-      // กรณีเพลงไฟล์เสียงปกติ: หยุด YouTube แล้วสตรีมไฟล์เสียง
       try { ytPlayerRef.current?.stopVideo(); } catch (e) {}
 
       audio.src = getFullMediaUrl(song.audio_path);
@@ -195,6 +268,7 @@ export function PlayerProvider({ children }) {
         .play()
         .then(() => {
           setIsPlaying(true);
+          isPlayingRef.current = true;
           setIsBuffering(false);
           api.get(`/songs/${song.id}`).catch(() => {});
         })
@@ -202,35 +276,53 @@ export function PlayerProvider({ children }) {
           console.error('Play error:', err);
           setIsBuffering(false);
           setIsPlaying(false);
+          isPlayingRef.current = false;
         });
     }
   };
 
   const togglePlay = () => {
-    if (!currentSong) return;
-    const isYt = isYouTubeSong(currentSong);
+    const song = currentSongRef.current;
+    if (!song) return;
+    const isYt = isYouTubeSong(song);
     const audio = audioRef.current;
 
-    if (isPlaying) {
+    if (isPlayingRef.current) {
       if (isYt) {
         try { ytPlayerRef.current?.pauseVideo(); } catch (e) {}
       } else {
         audio.pause();
       }
       setIsPlaying(false);
+      isPlayingRef.current = false;
     } else {
+      // ถ้าเพลงอยู่ท้ายคลิปหรือจบแล้ว ให้เริ่มเล่นจากวินาทีที่ 0
+      const isAtEnd = durationRef.current > 0 && currentTimeRef.current >= durationRef.current - 1;
+      if (isAtEnd) {
+        seek(0);
+      }
+
       if (isYt) {
-        try { ytPlayerRef.current?.playVideo(); } catch (e) {}
+        try {
+          if (isAtEnd) ytPlayerRef.current?.seekTo(0, true);
+          ytPlayerRef.current?.playVideo();
+        } catch (e) {}
         setIsPlaying(true);
+        isPlayingRef.current = true;
       } else {
-        audio.play().then(() => setIsPlaying(true)).catch(console.error);
+        if (isAtEnd) audio.currentTime = 0;
+        audio.play().then(() => {
+          setIsPlaying(true);
+          isPlayingRef.current = true;
+        }).catch(console.error);
       }
     }
   };
 
   const seek = (timeInSeconds) => {
     setCurrentTime(timeInSeconds);
-    const isYt = isYouTubeSong(currentSong);
+    currentTimeRef.current = timeInSeconds;
+    const isYt = isYouTubeSong(currentSongRef.current);
     if (isYt) {
       try { ytPlayerRef.current?.seekTo(timeInSeconds, true); } catch (e) {}
     } else if (audioRef.current) {
@@ -272,46 +364,77 @@ export function PlayerProvider({ children }) {
     setIsShuffle((prev) => !prev);
   };
 
-  const handleNextSong = () => {
-    if (queue.length === 0) return;
+  const handleNextSong = async () => {
+    let currentQueue = queueRef.current;
+    let currentIdx = queueIndexRef.current;
+    const shuffle = isShuffleRef.current;
 
-    let nextIndex = queueIndex + 1;
-    if (isShuffle) {
-      nextIndex = Math.floor(Math.random() * queue.length);
-    } else if (nextIndex >= queue.length) {
+    // ถ้าไม่มีคิว หรือคิวมีแค่ 1 เพลง ให้ลองดึงเพลงทั้งหมดมาเติมคิว
+    if (!currentQueue || currentQueue.length <= 1) {
+      try {
+        const res = await api.get('/songs?limit=50');
+        if (res.success && res.songs && res.songs.length > 0) {
+          currentQueue = res.songs;
+          setQueue(currentQueue);
+          queueRef.current = currentQueue;
+          currentIdx = currentQueue.findIndex((s) => s.id === currentSongRef.current?.id);
+          if (currentIdx === -1) currentIdx = 0;
+          setQueueIndex(currentIdx);
+          queueIndexRef.current = currentIdx;
+        }
+      } catch (e) {
+        console.warn('Auto fetch queue error:', e);
+      }
+    }
+
+    if (!currentQueue || currentQueue.length === 0) return;
+
+    let nextIndex = currentIdx + 1;
+    if (shuffle && currentQueue.length > 1) {
+      let rand = currentIdx;
+      while (rand === currentIdx) {
+        rand = Math.floor(Math.random() * currentQueue.length);
+      }
+      nextIndex = rand;
+    } else if (nextIndex >= currentQueue.length) {
       nextIndex = 0; // วนกลับไปเพลงแรกของคิว
     }
 
     setQueueIndex(nextIndex);
-    const nextSong = queue[nextIndex];
+    queueIndexRef.current = nextIndex;
+    const nextSong = currentQueue[nextIndex];
     if (nextSong) {
-      playSong(nextSong, queue);
+      playSong(nextSong, currentQueue, true);
     }
   };
 
   const handlePrevSong = () => {
-    if (queue.length === 0) return;
+    const currentQueue = queueRef.current;
+    const currentIdx = queueIndexRef.current;
+
+    if (!currentQueue || currentQueue.length === 0) return;
 
     // ถ้าเล่นเพลงผ่านไปเกิน 3 วินาทีแล้ว ให้เริ่มเพลงเดิมใหม่
-    if (currentTime > 3) {
+    if (currentTimeRef.current > 3) {
       seek(0);
       return;
     }
 
-    let prevIndex = queueIndex - 1;
+    let prevIndex = currentIdx - 1;
     if (prevIndex < 0) {
-      prevIndex = queue.length - 1;
+      prevIndex = currentQueue.length - 1;
     }
 
     setQueueIndex(prevIndex);
-    const prevSong = queue[prevIndex];
+    queueIndexRef.current = prevIndex;
+    const prevSong = currentQueue[prevIndex];
     if (prevSong) {
-      playSong(prevSong, queue);
+      playSong(prevSong, currentQueue, true);
     }
   };
 
   const updateSongLikeStatus = (songId, isLiked, likeCount) => {
-    if (currentSong && currentSong.id === songId) {
+    if (currentSongRef.current && currentSongRef.current.id === songId) {
       setCurrentSong((prev) => ({
         ...prev,
         is_liked: isLiked,
