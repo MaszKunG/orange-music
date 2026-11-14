@@ -69,9 +69,14 @@ export default function PendingSongsPage() {
     if (selected.size === 0) return;
     try {
       setBulkLoading(true);
-      const res = await api.post('/admin/songs/bulk-approve', { songIds: [...selected] });
+      const songList = [...selected];
+      const res = await api.post('/admin/songs/bulk-approve', { 
+        song_ids: songList, 
+        songIds: songList 
+      });
       if (res.success) {
-        showToast(`✅ อนุมัติ ${selected.size} เพลงพร้อมกันเรียบร้อยแล้ว`, 'success');
+        showToast(`✅ อนุมัติ ${songList.length} เพลงพร้อมกันเรียบร้อยแล้ว`, 'success');
+        setSelected(new Set());
         setApproveModal(null);
         loadPending();
       }

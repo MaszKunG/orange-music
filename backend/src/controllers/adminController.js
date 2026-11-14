@@ -173,7 +173,7 @@ async function rejectSong(req, res) {
 // 4. อนุมัติเพลงหลายรายการพร้อมกัน (Bulk Approve)
 async function bulkApproveSongs(req, res) {
   try {
-    const { song_ids } = req.body;
+    const song_ids = req.body.song_ids || req.body.songIds;
 
     if (!Array.isArray(song_ids) || song_ids.length === 0) {
       return res.status(400).json({ success: false, message: 'กรุณาเลือกเพลงที่ต้องการอนุมัติอย่างน้อย 1 เพลง' });
