@@ -5,6 +5,10 @@ const API_BASE = `${rawBase.replace(/\/$/, '')}/api`;
 
 export function getFullMediaUrl(path) {
   if (!path) return DEFAULT_COVER;
+  // ถ้าเป็นรูปลิงก์ YouTube ที่ใช้ hqdefault.jpg (มีแถบดำด้านบน-ล่าง 4:3) ให้แปลงเป็น maxresdefault.jpg (16:9 ไร้แถบดำ ขยายเต็มกรอบ)
+  if (typeof path === 'string' && path.includes('i.ytimg.com/vi/') && path.includes('hqdefault.jpg')) {
+    return path.replace('hqdefault.jpg', 'maxresdefault.jpg');
+  }
   if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:')) {
     return path;
   }

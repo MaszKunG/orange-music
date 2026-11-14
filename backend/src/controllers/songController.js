@@ -184,7 +184,16 @@ async function getYouTubeInfo(req, res) {
       .replace(/\(.*?(official|mv|audio|video|lyric|mv).*?\)/gi, '')
       .trim();
 
-    const thumbnail = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+    // ใช้รูปภาพความละเอียดสูง 16:9 ไร้แถบดำด้านบน-ล่าง (maxresdefault หรือ mqdefault)
+    let thumbnail = `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`;
+    try {
+      const maxresCheck = await fetch(thumbnail, { method: 'HEAD' });
+      if (!maxresCheck.ok) {
+        thumbnail = `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`;
+      }
+    } catch (e) {
+      thumbnail = `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`;
+    }
 
     return res.json({
       success: true,

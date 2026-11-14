@@ -115,6 +115,10 @@ export default function PersistentPlayer() {
               src={coverUrl}
               alt={currentSong.title}
               onError={(e) => {
+                if (e.currentTarget.src.includes('maxresdefault.jpg')) {
+                  e.currentTarget.src = e.currentTarget.src.replace('maxresdefault.jpg', 'mqdefault.jpg');
+                  return;
+                }
                 e.currentTarget.onerror = null;
                 e.currentTarget.src = DEFAULT_COVER;
               }}
