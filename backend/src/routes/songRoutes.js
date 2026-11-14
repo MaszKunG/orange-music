@@ -7,6 +7,9 @@ const { uploadSongFiles } = require('../middlewares/uploadMiddleware');
 // ดูเพลงทั้งหมด (ค้นหา, filter หมวดหมู่, เรียงตามความนิยม)
 router.get('/', optionalToken, songController.getAllSongs);
 
+// ดึงข้อมูลเพลงจาก YouTube oEmbed
+router.get('/youtube-info', songController.getYouTubeInfo);
+
 // ดูรายละเอียดเพลงเดี่ยว
 router.get('/:id', optionalToken, songController.getSongById);
 

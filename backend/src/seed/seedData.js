@@ -114,6 +114,14 @@ async function initDatabase() {
       await db.run(`ALTER TABLE songs ADD COLUMN reject_reason TEXT`);
       console.log('➕ Migration: เพิ่มคอลัมน์ reject_reason ในตาราง songs สำเร็จ');
     }
+    if (!columnNames.includes('youtube_id')) {
+      await db.run(`ALTER TABLE songs ADD COLUMN youtube_id TEXT`);
+      console.log('➕ Migration: เพิ่มคอลัมน์ youtube_id ในตาราง songs สำเร็จ');
+    }
+    if (!columnNames.includes('source_type')) {
+      await db.run(`ALTER TABLE songs ADD COLUMN source_type TEXT DEFAULT 'file'`);
+      console.log('➕ Migration: เพิ่มคอลัมน์ source_type ในตาราง songs สำเร็จ');
+    }
   } catch (migErr) {
     console.warn('Migration note:', migErr.message);
   }

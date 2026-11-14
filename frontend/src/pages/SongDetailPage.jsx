@@ -12,6 +12,7 @@ import {
   FileText, 
   ArrowLeft 
 } from 'lucide-react';
+import YouTubeIcon from '../components/common/YouTubeIcon';
 import { api, getFullMediaUrl, DEFAULT_COVER } from '../services/api';
 import { usePlayer } from '../context/PlayerContext';
 import { useAuth } from '../context/AuthContext';
@@ -130,11 +131,19 @@ export default function SongDetailPage() {
         </div>
 
         <div className="flex-1 space-y-3 text-center md:text-left">
-          {song.category_name && (
-            <span className="inline-block text-[11px] font-bold text-orange-400 bg-orange-500/15 border border-orange-500/30 px-3 py-1 rounded-full uppercase tracking-wider">
-              {song.category_name}
-            </span>
-          )}
+          <div className="flex flex-wrap items-center justify-center md:justify-start gap-2">
+            {song.category_name && (
+              <span className="inline-block text-[11px] font-bold text-orange-400 bg-orange-500/15 border border-orange-500/30 px-3 py-1 rounded-full uppercase tracking-wider">
+                {song.category_name}
+              </span>
+            )}
+            {(song.source_type === 'youtube' || song.youtube_id) && (
+              <span className="inline-flex items-center space-x-1.5 text-[11px] font-bold text-white bg-red-600 px-3 py-1 rounded-full uppercase tracking-wider shadow-md">
+                <YouTubeIcon className="w-3.5 h-3.5" />
+                <span>YouTube Stream</span>
+              </span>
+            )}
+          </div>
 
           <h1 className="text-2xl sm:text-4xl font-black text-white tracking-tight">
             {song.title}

@@ -6,9 +6,11 @@ const PlayerContext = createContext(null);
 
 export function PlayerProvider({ children }) {
   const audioRef = useRef(new Audio());
+  const ytPlayerRef = useRef(null);
   const [currentSong, setCurrentSong] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isBuffering, setIsBuffering] = useState(false);
+  const [showVideoMV, setShowVideoMV] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(() => {
@@ -22,16 +24,62 @@ export function PlayerProvider({ children }) {
   const [queueIndex, setQueueIndex] = useState(-1);
   const { showToast } = useToast();
 
-  // ตั้งค่า audio element เมื่อ mount
+  const isYouTubeSong = (song) => {
+    if (!song) return false;
+    return (
+      song.source_type === 'youtube' ||
+      (typeof song.audio_path === 'string' && song.audio_path.startsWith('youtube:')) ||
+      Boolean(song.youtube_id)
+    );
+  };
+
+  const getYouTubeId = (song) => {
+    if (!song) return null;
+    if (song.youtube_id) return song.youtube_id;
+    if (typeof song.audio_path === 'string' && song.audio_path.startsWith('youtube:')) {
+      return song.audio_path.replace(/^youtube:/, '');
+    }
+    return null;
+  };
+
+  const registerYtPlayer = (player) => {
+    ytPlayerRef.current = player;
+  };
+
+  // ติดตามเวลาของเพลง YouTube ทุก 500ms
+  useEffect(() => {
+    const isYt = isYouTubeSong(currentSong);
+    if (isYt && isPlaying) {
+      const interval = setInterval(() => {
+        if (ytPlayerRef.current && ytPlayerRef.current.getCurrentTime) {
+          try {
+            const cur = ytPlayerRef.current.getCurrentTime() || 0;
+            const dur = ytPlayerRef.current.getDuration() || 0;
+            setCurrentTime(cur);
+            if (dur > 0) setDuration(dur);
+          } catch (e) {}
+        }
+      }, 500);
+      return () => clearInterval(interval);
+    }
+  }, [currentSong, isPlaying]);
+
+  // ตั้งค่า HTML5 audio element เมื่อ mount
   useEffect(() => {
     const audio = audioRef.current;
     audio.volume = volume;
     audio.preload = 'auto';
 
-    const onTimeUpdate = () => setCurrentTime(audio.currentTime);
+    const onTimeUpdate = () => {
+      if (!isYouTubeSong(currentSong)) {
+        setCurrentTime(audio.currentTime);
+      }
+    };
     const onLoadedMetadata = () => {
-      setDuration(audio.duration || 0);
-      setIsBuffering(false);
+      if (!isYouTubeSong(currentSong)) {
+        setDuration(audio.duration || 0);
+        setIsBuffering(false);
+      }
     };
     const onWaiting = () => setIsBuffering(true);
     const onPlaying = () => {
@@ -71,21 +119,31 @@ export function PlayerProvider({ children }) {
       audio.removeEventListener('ended', onEnded);
       audio.removeEventListener('error', onError);
     };
-  }, [isLoop]);
+  }, [isLoop, currentSong]);
 
-  // เล่นเพลงเดี่ยว หรือเริ่มเล่นจากเพลย์ลิสต์
+  // เล่นเพลงเดี่ยว หรือเริ่มเล่นจากเพลย์ลิสต์ (รองรับทั้งไฟล์และ YouTube)
   const playSong = async (song, playlist = null) => {
-    if (!song || !song.audio_path) return;
+    if (!song) return;
 
     const audio = audioRef.current;
+    const isYt = isYouTubeSong(song);
 
     // ถ้ากดเล่นเพลงเดิมที่กำลังเล่นอยู่
     if (currentSong?.id === song.id) {
       if (isPlaying) {
-        audio.pause();
+        if (isYt) {
+          try { ytPlayerRef.current?.pauseVideo(); } catch (e) {}
+        } else {
+          audio.pause();
+        }
         setIsPlaying(false);
       } else {
-        audio.play().then(() => setIsPlaying(true)).catch(console.error);
+        if (isYt) {
+          try { ytPlayerRef.current?.playVideo(); } catch (e) {}
+          setIsPlaying(true);
+        } else {
+          audio.play().then(() => setIsPlaying(true)).catch(console.error);
+        }
       }
       return;
     }
@@ -105,48 +163,87 @@ export function PlayerProvider({ children }) {
 
     setCurrentSong(song);
     setIsBuffering(true);
-    audio.src = getFullMediaUrl(song.audio_path);
-    audio.currentTime = 0;
+    setCurrentTime(0);
 
-    audio
-      .play()
-      .then(() => {
-        setIsPlaying(true);
-        setIsBuffering(false);
-        // เรียก API เพื่อบันทึกยอด play_count ใน backend
-        api.get(`/songs/${song.id}`).catch(() => {});
-      })
-      .catch((err) => {
-        console.error('Play error:', err);
-        setIsBuffering(false);
-        setIsPlaying(false);
-      });
+    if (isYt) {
+      // กรณีเพลง YouTube: หยุด HTML5 Audio แล้วส่ง Video ID ให้ YouTube Player
+      audio.pause();
+      audio.src = '';
+
+      const vid = getYouTubeId(song);
+      if (vid) {
+        if (ytPlayerRef.current && ytPlayerRef.current.loadVideoById) {
+          try {
+            ytPlayerRef.current.loadVideoById(vid);
+            ytPlayerRef.current.playVideo();
+            setIsPlaying(true);
+            setIsBuffering(false);
+          } catch (ytErr) {
+            console.warn('YouTube load error:', ytErr);
+          }
+        }
+      }
+      api.get(`/songs/${song.id}`).catch(() => {});
+    } else {
+      // กรณีเพลงไฟล์เสียงปกติ: หยุด YouTube แล้วสตรีมไฟล์เสียง
+      try { ytPlayerRef.current?.stopVideo(); } catch (e) {}
+
+      audio.src = getFullMediaUrl(song.audio_path);
+      audio.currentTime = 0;
+
+      audio
+        .play()
+        .then(() => {
+          setIsPlaying(true);
+          setIsBuffering(false);
+          api.get(`/songs/${song.id}`).catch(() => {});
+        })
+        .catch((err) => {
+          console.error('Play error:', err);
+          setIsBuffering(false);
+          setIsPlaying(false);
+        });
+    }
   };
 
   const togglePlay = () => {
     if (!currentSong) return;
+    const isYt = isYouTubeSong(currentSong);
     const audio = audioRef.current;
+
     if (isPlaying) {
-      audio.pause();
+      if (isYt) {
+        try { ytPlayerRef.current?.pauseVideo(); } catch (e) {}
+      } else {
+        audio.pause();
+      }
       setIsPlaying(false);
     } else {
-      audio.play().then(() => setIsPlaying(true)).catch(console.error);
+      if (isYt) {
+        try { ytPlayerRef.current?.playVideo(); } catch (e) {}
+        setIsPlaying(true);
+      } else {
+        audio.play().then(() => setIsPlaying(true)).catch(console.error);
+      }
     }
   };
 
   const seek = (timeInSeconds) => {
-    if (!audioRef.current) return;
-    audioRef.current.currentTime = timeInSeconds;
     setCurrentTime(timeInSeconds);
+    const isYt = isYouTubeSong(currentSong);
+    if (isYt) {
+      try { ytPlayerRef.current?.seekTo(timeInSeconds, true); } catch (e) {}
+    } else if (audioRef.current) {
+      audioRef.current.currentTime = timeInSeconds;
+    }
   };
 
   const handleVolumeChange = (newVol) => {
     const vol = Math.max(0, Math.min(1, newVol));
     setVolume(vol);
     localStorage.setItem('orange_music_volume', vol.toString());
-    if (audioRef.current) {
-      audioRef.current.volume = vol;
-    }
+    if (audioRef.current) audioRef.current.volume = vol;
+    try { ytPlayerRef.current?.setVolume(vol * 100); } catch (e) {}
     if (vol > 0 && isMuted) {
       setIsMuted(false);
     }
@@ -155,9 +252,14 @@ export function PlayerProvider({ children }) {
   const toggleMute = () => {
     if (isMuted) {
       audioRef.current.volume = volume;
+      try {
+        ytPlayerRef.current?.unMute();
+        ytPlayerRef.current?.setVolume(volume * 100);
+      } catch (e) {}
       setIsMuted(false);
     } else {
       audioRef.current.volume = 0;
+      try { ytPlayerRef.current?.mute(); } catch (e) {}
       setIsMuted(true);
     }
   };
@@ -234,7 +336,9 @@ export function PlayerProvider({ children }) {
       value={{
         currentSong,
         isPlaying,
+        setIsPlaying,
         isBuffering,
+        setIsBuffering,
         currentTime,
         duration,
         volume,
@@ -243,6 +347,11 @@ export function PlayerProvider({ children }) {
         isShuffle,
         queue,
         queueIndex,
+        isYouTubeSong: isYouTubeSong(currentSong),
+        showVideoMV,
+        setShowVideoMV,
+        registerYtPlayer,
+        getYouTubeId,
         playSong,
         togglePlay,
         seek,

@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { api, getFullMediaUrl, DEFAULT_COVER } from '../../services/api';
 import { useToast } from '../../context/ToastContext';
 import AddToPlaylistModal from '../playlist/AddToPlaylistModal';
+import YouTubeIcon from '../common/YouTubeIcon';
 
 export default function SongCard({ song, playlist = [] }) {
   const { currentSong, isPlaying, isBuffering, playSong, updateSongLikeStatus } = usePlayer();
@@ -17,6 +18,10 @@ export default function SongCard({ song, playlist = [] }) {
   const isCurrent = currentSong?.id === song.id;
   const isThisPlaying = isCurrent && isPlaying;
   const isThisBuffering = isCurrent && isBuffering;
+  const isYouTube =
+    song.source_type === 'youtube' ||
+    Boolean(song.youtube_id) ||
+    (typeof song.audio_path === 'string' && song.audio_path.startsWith('youtube:'));
 
   const handlePlayClick = (e) => {
     e.stopPropagation();
@@ -104,6 +109,14 @@ export default function SongCard({ song, playlist = [] }) {
             {song.category_name && (
               <span className="absolute top-2 left-2 text-[10px] font-semibold bg-dark-base/80 backdrop-blur-md text-orange-400 px-2 py-0.5 rounded-full border border-orange-500/30">
                 {song.category_name}
+              </span>
+            )}
+
+            {/* Tag YouTube */}
+            {isYouTube && (
+              <span className="absolute top-2 right-2 text-[9px] font-bold bg-red-600 text-white px-2 py-0.5 rounded-full shadow-md flex items-center space-x-1 tracking-wide z-10">
+                <YouTubeIcon className="w-2.5 h-2.5" />
+                <span>YouTube</span>
               </span>
             )}
           </div>

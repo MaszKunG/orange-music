@@ -20,6 +20,8 @@ import { usePlayer } from '../../context/PlayerContext';
 import { useAuth } from '../../context/AuthContext';
 import { api, getFullMediaUrl, DEFAULT_COVER } from '../../services/api';
 import { useToast } from '../../context/ToastContext';
+import YouTubePlayer from './YouTubePlayer';
+import YouTubeIcon from '../common/YouTubeIcon';
 
 export default function PersistentPlayer() {
   const {
@@ -42,7 +44,8 @@ export default function PersistentPlayer() {
     nextSong,
     prevSong,
     updateSongLikeStatus,
-    queue
+    queue,
+    isYouTubeSong
   } = usePlayer();
 
   const { isAuthenticated } = useAuth();
@@ -53,20 +56,23 @@ export default function PersistentPlayer() {
   // ถ้ายังไม่มีเพลงที่เลือกเล่น ให้แสดงแถบต้อนรับแบบย่อ หรือ placeholder
   if (!currentSong) {
     return (
-      <footer className="fixed bottom-0 left-0 right-0 z-40 bg-dark-surface/95 backdrop-blur-lg border-t border-dark-border px-4 py-3 flex items-center justify-between text-xs text-text-sub">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-lg bg-dark-card flex items-center justify-center text-orange-500">
-            🍊
+      <>
+        <YouTubePlayer />
+        <footer className="fixed bottom-0 left-0 right-0 z-40 bg-dark-surface/95 backdrop-blur-lg border-t border-dark-border px-4 py-3 flex items-center justify-between text-xs text-text-sub">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-lg bg-dark-card flex items-center justify-center text-orange-500">
+              🍊
+            </div>
+            <div>
+              <p className="font-semibold text-white">ยินดีต้อนรับสู่ Orange Music</p>
+              <p className="text-[11px] text-text-muted">เลือกเพลงที่คุณชื่นชอบเพื่อเริ่มฟังฟรีได้ทันที</p>
+            </div>
           </div>
-          <div>
-            <p className="font-semibold text-white">ยินดีต้อนรับสู่ Orange Music</p>
-            <p className="text-[11px] text-text-muted">เลือกเพลงที่คุณชื่นชอบเพื่อเริ่มฟังฟรีได้ทันที</p>
+          <div className="text-[11px] text-orange-400 font-medium hidden sm:block">
+            ไม่มีโฆษณาคั่น • ฟรี 100% สำหรับการศึกษา
           </div>
-        </div>
-        <div className="text-[11px] text-orange-400 font-medium hidden sm:block">
-          ไม่มีโฆษณาคั่น • ฟรี 100% สำหรับการศึกษา
-        </div>
-      </footer>
+        </footer>
+      </>
     );
   }
 
@@ -100,6 +106,7 @@ export default function PersistentPlayer() {
 
   return (
     <>
+      <YouTubePlayer />
       <footer className="fixed bottom-0 left-0 right-0 z-40 bg-dark-surface/95 backdrop-blur-md border-t border-dark-border px-4 py-2.5 h-[84px] flex items-center justify-between gap-2 sm:gap-6 shadow-dialog select-none">
         {/* ฝั่งซ้าย: ข้อมูลเพลงที่กำลังเล่น */}
         <div className="flex items-center space-x-3 min-w-0 w-1/4 sm:w-1/3 max-w-[280px]">
@@ -121,13 +128,20 @@ export default function PersistentPlayer() {
           </Link>
 
           <div className="min-w-0 flex-1">
-            <Link
-              to={`/songs/${currentSong.id}`}
-              className="text-xs sm:text-sm font-bold text-white hover:text-orange-400 transition-colors truncate block"
-              title={currentSong.title}
-            >
-              {currentSong.title}
-            </Link>
+            <div className="flex items-center space-x-1.5 truncate">
+              <Link
+                to={`/songs/${currentSong.id}`}
+                className="text-xs sm:text-sm font-bold text-white hover:text-orange-400 transition-colors truncate"
+                title={currentSong.title}
+              >
+                {currentSong.title}
+              </Link>
+              {isYouTubeSong && (
+                <span className="flex-shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-600 text-white tracking-wider" title="สตรีมจาก YouTube">
+                  YT
+                </span>
+              )}
+            </div>
             <p className="text-[11px] text-text-sub truncate" title={currentSong.artist}>
               {currentSong.artist}
             </p>

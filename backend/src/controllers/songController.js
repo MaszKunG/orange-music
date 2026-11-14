@@ -134,25 +134,110 @@ async function getSongById(req, res) {
   }
 }
 
+function extractYouTubeVideoId(url) {
+  if (!url || typeof url !== 'string') return null;
+  const trimmed = url.trim();
+  if (/^[a-zA-Z0-9_-]{11}$/.test(trimmed)) return trimmed;
+  const match = trimmed.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))([a-zA-Z0-9_-]{11})/);
+  return match ? match[1] : null;
+}
+
+// ดึงข้อมูลเพลงและหน้าปกจาก YouTube oEmbed อัตโนมัติ (ไม่ต้องใช้ API Key)
+async function getYouTubeInfo(req, res) {
+  try {
+    const { url } = req.query;
+    if (!url) {
+      return res.status(400).json({ success: false, message: 'กรุณาระบุ URL ของ YouTube' });
+    }
+
+    const videoId = extractYouTubeVideoId(url);
+    if (!videoId) {
+      return res.status(400).json({ success: false, message: 'รูปแบบลิงก์ YouTube ไม่ถูกต้อง (ตัวอย่าง: https://www.youtube.com/watch?v=... หรือ https://youtu.be/...)' });
+    }
+
+    const oembedUrl = `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`;
+    const response = await fetch(oembedUrl);
+
+    if (!response.ok) {
+      return res.status(404).json({ success: false, message: 'ไม่พบวิดีโอ YouTube นี้ หรือวิดีโอถูกตั้งค่าเป็นส่วนตัว' });
+    }
+
+    const data = await response.json();
+    let rawTitle = data.title || '';
+    let artist = data.author_name || '';
+    let title = rawTitle;
+
+    // ถ้าชื่อคลิปมีรูปแบบ "Artist - Title" หรือ "Artist : Title"
+    if (rawTitle.includes(' - ')) {
+      const parts = rawTitle.split(' - ');
+      artist = parts[0].trim();
+      title = parts.slice(1).join(' - ').trim();
+    } else if (rawTitle.includes(' : ')) {
+      const parts = rawTitle.split(' : ');
+      artist = parts[0].trim();
+      title = parts.slice(1).join(' : ').trim();
+    }
+
+    // ตัดคำว่า [Official MV], (Official Audio) ออกเพื่อให้ชื่อเพลงสะอาดตา
+    title = title
+      .replace(/\[.*?(official|mv|audio|video|lyric|mv).*?\]/gi, '')
+      .replace(/\(.*?(official|mv|audio|video|lyric|mv).*?\)/gi, '')
+      .trim();
+
+    const thumbnail = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+
+    return res.json({
+      success: true,
+      videoId,
+      title: title || rawTitle,
+      artist: artist || data.author_name,
+      thumbnail,
+      rawTitle
+    });
+  } catch (err) {
+    console.error('Fetch YouTube info error:', err);
+    return res.status(500).json({ success: false, message: 'ไม่สามารถดึงข้อมูลจาก YouTube ได้' });
+  }
+}
+
 // อัปโหลดเพลงใหม่ (ผู้อัปโหลด -> pending, แอดมิน -> approved อัตโนมัติ)
+// รองรับทั้งไฟล์เพลงในเครื่อง และลิงก์จาก YouTube
 async function uploadSong(req, res) {
   try {
-    const { title, artist, category_id, description, lyrics } = req.body;
+    const { title, artist, category_id, description, lyrics, youtube_url, youtube_id, source_type } = req.body;
+
+    const ytId = extractYouTubeVideoId(youtube_url || youtube_id);
+    const isYouTube = source_type === 'youtube' || Boolean(ytId);
 
     if (!title || !artist) {
       return res.status(400).json({ success: false, message: 'กรุณากรอกชื่อเพลงและชื่อศิลปิน' });
     }
 
-    if (!req.files || !req.files.audio || req.files.audio.length === 0) {
-      return res.status(400).json({ success: false, message: 'กรุณาอัปโหลดไฟล์เสียงเพลง (.mp3, .wav, .m4a)' });
+    const hasAudioFile = req.files && req.files.audio && req.files.audio.length > 0;
+    if (!isYouTube && !hasAudioFile) {
+      return res.status(400).json({ success: false, message: 'กรุณาอัปโหลดไฟล์เสียง หรือระบุลิงก์ YouTube' });
     }
 
-    const audioFile = req.files.audio[0];
-    const audio_path = await saveUploadedFile(audioFile, 'audio');
+    let audio_path = '';
+    let finalSourceType = 'file';
+    let finalYoutubeId = null;
+
+    if (isYouTube && ytId) {
+      finalSourceType = 'youtube';
+      finalYoutubeId = ytId;
+      audio_path = `youtube:${ytId}`;
+    } else if (hasAudioFile) {
+      const audioFile = req.files.audio[0];
+      audio_path = await saveUploadedFile(audioFile, 'audio');
+    }
 
     let cover_path = null;
-    if (req.files.cover && req.files.cover.length > 0) {
+    if (req.files && req.files.cover && req.files.cover.length > 0) {
       cover_path = await saveUploadedFile(req.files.cover[0], 'covers');
+    } else if (req.body.cover_path) {
+      cover_path = req.body.cover_path;
+    } else if (isYouTube && finalYoutubeId) {
+      cover_path = `https://i.ytimg.com/vi/${finalYoutubeId}/hqdefault.jpg`;
     } else {
       cover_path = 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=80';
     }
@@ -164,8 +249,12 @@ async function uploadSong(req, res) {
     const reviewedAt = isAdmin ? new Date().toISOString() : null;
 
     const result = await db.run(`
-      INSERT INTO songs (title, artist, category_id, uploader_id, description, lyrics, audio_path, cover_path, play_count, status, reviewed_by, reviewed_at, reject_reason)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, NULL)
+      INSERT INTO songs (
+        title, artist, category_id, uploader_id, description, lyrics,
+        audio_path, cover_path, play_count, status, reviewed_by, reviewed_at,
+        reject_reason, youtube_id, source_type
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, NULL, ?, ?)
     `, [
       title.trim(),
       artist.trim(),
@@ -177,21 +266,26 @@ async function uploadSong(req, res) {
       cover_path,
       initialStatus,
       reviewedBy,
-      reviewedAt
+      reviewedAt,
+      finalYoutubeId,
+      finalSourceType
     ]);
 
-    // บันทึกไฟล์เสียงลงฐานข้อมูล Turso เพื่อป้องกันไฟล์หายเมื่อ Render รีสตาร์ท
-    if (audioFile && fs.existsSync(audioFile.path)) {
-      try {
-        const audioBuffer = fs.readFileSync(audioFile.path);
-        await db.run(
-          `INSERT OR REPLACE INTO song_audio (song_id, data, mime) VALUES (?, ?, ?)`,
-          [result.id, audioBuffer, audioFile.mimetype || 'audio/mpeg']
-        );
-        // กำหนด audio_path ให้สตรีมผ่าน API ถาวร
-        await db.run(`UPDATE songs SET audio_path = ? WHERE id = ?`, [`/api/songs/${result.id}/stream`, result.id]);
-      } catch (audioErr) {
-        console.warn('Audio DB backup note:', audioErr.message);
+    // บันทึกไฟล์เสียงลงฐานข้อมูล Turso เพื่อป้องกันไฟล์หายเมื่อ Render รีสตาร์ท (เฉพาะไฟล์ในเครื่อง)
+    if (!isYouTube && hasAudioFile) {
+      const audioFile = req.files.audio[0];
+      if (fs.existsSync(audioFile.path)) {
+        try {
+          const audioBuffer = fs.readFileSync(audioFile.path);
+          await db.run(
+            `INSERT OR REPLACE INTO song_audio (song_id, data, mime) VALUES (?, ?, ?)`,
+            [result.id, audioBuffer, audioFile.mimetype || 'audio/mpeg']
+          );
+          // กำหนด audio_path ให้สตรีมผ่าน API ถาวร
+          await db.run(`UPDATE songs SET audio_path = ? WHERE id = ?`, [`/api/songs/${result.id}/stream`, result.id]);
+        } catch (audioErr) {
+          console.warn('Audio DB backup note:', audioErr.message);
+        }
       }
     }
 
@@ -200,8 +294,8 @@ async function uploadSong(req, res) {
     return res.status(201).json({
       success: true,
       message: isAdmin 
-        ? 'อัปโหลดและอนุมัติเพลงเรียบร้อยแล้ว พร้อมให้ทุกคนรับฟังทันที' 
-        : 'ส่งเพลงเรียบร้อย กำลังรอผู้ดูแลระบบตรวจสอบ',
+        ? (isYouTube ? 'นำเข้าเพลงจาก YouTube และอนุมัติเรียบร้อยแล้ว!' : 'อัปโหลดและอนุมัติเพลงเรียบร้อยแล้ว!')
+        : (isYouTube ? 'ส่งเพลงจาก YouTube เรียบร้อย กำลังรอผู้ดูแลระบบตรวจสอบ' : 'ส่งเพลงเรียบร้อย กำลังรอผู้ดูแลระบบตรวจสอบ'),
       song: newSong
     });
   } catch (err) {
@@ -470,5 +564,6 @@ module.exports = {
   updateSong,
   resubmitSong,
   deleteSong,
-  streamSongAudio
+  streamSongAudio,
+  getYouTubeInfo
 };
