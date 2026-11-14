@@ -1,5 +1,10 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { usePlayer } from './PlayerContext';
+import {
+  getStoredCustomWallpaper,
+  setStoredCustomWallpaper,
+  removeStoredCustomWallpaper,
+} from '../utils/wallpaperStorage';
 
 export const THEME_COLORS = [
   {
@@ -166,13 +171,37 @@ export function ThemeProvider({ children }) {
   });
 
   const [overlayOpacity, setOverlayOpacity] = useState(() => {
-    return Number(localStorage.getItem('orange_music_overlay_opacity')) || 85;
+    const saved = localStorage.getItem('orange_music_overlay_opacity');
+    return saved !== null ? Number(saved) : 80;
   });
 
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
+  const [customWallpaperUrl, setCustomWallpaperUrl] = useState(null);
+
+  // โหลดภาพพื้นหลังกำหนดเองจาก IndexedDB เมื่อเริ่มต้นระบบ
+  useEffect(() => {
+    getStoredCustomWallpaper().then((stored) => {
+      if (stored) {
+        setCustomWallpaperUrl(stored);
+      }
+    }).catch(console.warn);
+  }, []);
 
   const currentTheme = THEME_COLORS.find(t => t.id === themeId) || THEME_COLORS[0];
-  const currentWallpaper = WALLPAPERS.find(w => w.id === wallpaperId) || WALLPAPERS[0];
+
+  // อ็อบเจ็กต์พื้นหลังที่ผู้ใช้เพิ่มเอง
+  const customWallpaperObj = customWallpaperUrl ? {
+    id: 'custom',
+    name: 'พื้นหลังที่คุณเพิ่ม (Custom Wallpaper)',
+    type: 'image',
+    url: customWallpaperUrl,
+    isCustom: true,
+    description: 'รูปภาพหรือ GIF เคลื่อนไหวที่คุณกำหนดเอง'
+  } : null;
+
+  const currentWallpaper = (wallpaperId === 'custom' && customWallpaperObj)
+    ? customWallpaperObj
+    : (WALLPAPERS.find(w => w.id === wallpaperId) || WALLPAPERS[0]);
 
   // อัปเดต CSS Variables บน documentElement เมื่อเปลี่ยนสี Theme
   useEffect(() => {
@@ -197,7 +226,7 @@ export function ThemeProvider({ children }) {
 
   // บันทึกความเข้ม Overlay
   useEffect(() => {
-    localStorage.setItem('orange_music_overlay_opacity', overlayOpacity);
+    localStorage.setItem('orange_music_overlay_opacity', overlayOpacity.toString());
   }, [overlayOpacity]);
 
   const selectTheme = (id) => {
@@ -208,10 +237,24 @@ export function ThemeProvider({ children }) {
     setWallpaperId(id);
   };
 
+  const saveCustomWallpaper = async (urlOrDataUrl) => {
+    setCustomWallpaperUrl(urlOrDataUrl);
+    setWallpaperId('custom');
+    await setStoredCustomWallpaper(urlOrDataUrl);
+  };
+
+  const removeCustomWallpaper = async () => {
+    setCustomWallpaperUrl(null);
+    if (wallpaperId === 'custom') {
+      setWallpaperId('default');
+    }
+    await removeStoredCustomWallpaper();
+  };
+
   const resetToDefault = () => {
     setThemeId('orange');
     setWallpaperId('default');
-    setOverlayOpacity(85);
+    setOverlayOpacity(80);
   };
 
   return (
@@ -220,6 +263,10 @@ export function ThemeProvider({ children }) {
       wallpaperId,
       currentTheme,
       currentWallpaper,
+      customWallpaperObj,
+      customWallpaperUrl,
+      saveCustomWallpaper,
+      removeCustomWallpaper,
       overlayOpacity,
       setOverlayOpacity,
       selectTheme,

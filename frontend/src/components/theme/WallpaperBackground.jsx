@@ -8,7 +8,7 @@ export default function WallpaperBackground() {
   const { currentSong } = usePlayer();
 
   const isAmoled = currentWallpaper.id === 'amoled';
-  const isImage = currentWallpaper.type === 'image';
+  const isImage = currentWallpaper.type === 'image' || currentWallpaper.id === 'custom';
   const isDynamic = currentWallpaper.id === 'dynamic-blur';
 
   // รูปปกเพลงสำหรับ Dynamic Album Art
@@ -39,17 +39,17 @@ export default function WallpaperBackground() {
         </>
       )}
 
-      {/* 3. กรณี Wallpaper รูปภาพ (Lo-Fi Cafe, Starry Night, Aurora, etc.) */}
-      {isImage && (
+      {/* 3. กรณี Wallpaper รูปภาพ หรือ GIF (รวมถึง Custom ที่ผู้ใช้อัปโหลด) */}
+      {isImage && currentWallpaper.url && (
         <>
           <img
             src={currentWallpaper.url}
             alt={currentWallpaper.name}
-            className="absolute inset-0 w-full h-full object-cover filter blur-[1px] scale-105 transition-all duration-700"
+            className="absolute inset-0 w-full h-full object-cover filter blur-[0.5px] scale-105 transition-all duration-700"
           />
           {/* Dark Overlay ปรับความเข้มได้ เพื่อให้อ่านตัวหนังสือและปุ่มกดได้ชัดเจน 100% */}
           <div 
-            className="absolute inset-0 bg-black transition-opacity duration-300"
+            className="absolute inset-0 bg-black transition-opacity duration-200"
             style={{ opacity: overlayOpacity / 100 }}
           />
         </>

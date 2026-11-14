@@ -74,6 +74,46 @@ input[type="range"]::-webkit-slider-thumb:hover {
   background: #FF7A00;
 }
 
+/* Custom Visible Slider for Settings & Theme Modal */
+input[type="range"].custom-slider {
+  height: 8px;
+  border-radius: 9999px;
+}
+
+input[type="range"].custom-slider::-webkit-slider-thumb {
+  opacity: 1 !important;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #FFFFFF;
+  border: 3px solid #FF7A00;
+  box-shadow: 0 0 12px rgba(255, 122, 0, 0.65);
+  cursor: grab;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+input[type="range"].custom-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: 0 0 18px rgba(255, 122, 0, 0.95);
+  background: #FFFFFF;
+}
+
+input[type="range"].custom-slider::-webkit-slider-thumb:active {
+  cursor: grabbing;
+  transform: scale(1.1);
+}
+
+input[type="range"].custom-slider::-moz-range-thumb {
+  opacity: 1 !important;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #FFFFFF;
+  border: 3px solid #FF7A00;
+  box-shadow: 0 0 12px rgba(255, 122, 0, 0.65);
+  cursor: grab;
+}
+
 /* Animations */
 @keyframes pulseGlow {
   0%, 100% {
