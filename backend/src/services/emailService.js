@@ -6,10 +6,11 @@ let transporter = null;
 async function getTransporter() {
   if (transporter) return transporter;
 
-  const host = process.env.SMTP_HOST;
+  const host = process.env.SMTP_HOST ? process.env.SMTP_HOST.trim() : '';
   const port = process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT, 10) : 587;
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
+  const user = process.env.SMTP_USER ? process.env.SMTP_USER.trim() : '';
+  // ลบช่องว่างออกอัตโนมัติ เผื่อผู้ใช้คัดลอก App Password ของ Google ที่มีช่องว่างมา
+  const pass = process.env.SMTP_PASS ? process.env.SMTP_PASS.replace(/\s+/g, '') : '';
 
   if (host && user && pass) {
     // ใช้ SMTP จาก Environment Variables (เช่น Gmail, Brevo, SendGrid ฯลฯ)
