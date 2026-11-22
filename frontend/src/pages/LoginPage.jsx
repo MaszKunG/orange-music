@@ -60,9 +60,17 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-text-sub uppercase mb-1.5">
-              รหัสผ่าน
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-bold text-text-sub uppercase">
+                รหัสผ่าน
+              </label>
+              <Link
+                to="/forgot-password"
+                className="text-xs font-semibold text-orange-400 hover:text-orange-300 hover:underline transition-colors"
+              >
+                ลืมรหัสผ่าน?
+              </Link>
+            </div>
             <input
               type="password"
               value={password}

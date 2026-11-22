@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { JWT_SECRET } = require('../middlewares/authMiddleware');
 const { saveUploadedFile } = require('../services/storageService');
+const { sendPasswordResetEmail } = require('../services/emailService');
 
 // สมัครสมาชิก (เฉพาะบทบาท 'user' หรือ 'uploader')
 async function register(req, res) {
@@ -193,9 +194,180 @@ async function updateProfile(req, res) {
   }
 }
 
+// ขอรหัสยืนยัน OTP รีเซ็ตรหัสผ่าน ส่งไปยังอีเมลอัตโนมัติ
+async function forgotPassword(req, res) {
+  try {
+    const { email } = req.body;
+
+    if (!email || !email.trim()) {
+      return res.status(400).json({ success: false, message: 'กรุณากรอกอีเมลที่ลงทะเบียนไว้' });
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+
+    // ค้นหาผู้ใช้จากอีเมล
+    const user = await db.get(
+      `SELECT id, username, email FROM users WHERE LOWER(email) = ?`,
+      [cleanEmail]
+    );
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'ไม่พบบัญชีผู้ใช้ที่ลงทะเบียนด้วยอีเมลนี้ในระบบ'
+      });
+    }
+
+    // สร้างรหัส OTP 6 หลัก
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // กำหนดเวลาหมดอายุ 15 นาที
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+
+    // ยกเลิก OTP เก่าที่ยังไม่ได้ใช้ของอีเมลนี้
+    await db.run(
+      `UPDATE password_resets SET used = 1 WHERE LOWER(email) = ? AND used = 0`,
+      [cleanEmail]
+    );
+
+    // บันทึก OTP ใหม่ลงในฐานข้อมูล
+    await db.run(
+      `INSERT INTO password_resets (email, otp, expires_at) VALUES (?, ?, ?)`,
+      [cleanEmail, otp, expiresAt]
+    );
+
+    // ส่งอีเมลพร้อมรหัสยืนยัน OTP อัตโนมัติ
+    await sendPasswordResetEmail(user.email, user.username, otp);
+
+    return res.json({
+      success: true,
+      message: 'ระบบได้ส่งรหัสยืนยัน (OTP) ไปที่อีเมลของคุณเรียบร้อยแล้ว กรุณาตรวจสอบกล่องข้อความหรืออีเมลขยะ',
+      email: user.email,
+      // แนบ dev_otp เพื่อความสะดวกในการทดสอบพัฒนา
+      dev_otp: process.env.NODE_ENV !== 'production' ? otp : undefined
+    });
+  } catch (err) {
+    console.error('Forgot password error:', err);
+    return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการส่งรหัสยืนยัน' });
+  }
+}
+
+// ตรวจสอบความถูกต้องของรหัสยืนยัน OTP
+async function verifyResetOtp(req, res) {
+  try {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+      return res.status(400).json({ success: false, message: 'กรุณากรอกอีเมลและรหัสยืนยัน 6 หลัก' });
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanOtp = otp.toString().trim();
+
+    const record = await db.get(
+      `SELECT * FROM password_resets 
+       WHERE LOWER(email) = ? AND otp = ? AND used = 0 
+       ORDER BY id DESC LIMIT 1`,
+      [cleanEmail, cleanOtp]
+    );
+
+    if (!record) {
+      return res.status(400).json({
+        success: false,
+        message: 'รหัสยืนยันไม่ถูกต้อง หรือถูกใช้งานไปแล้ว'
+      });
+    }
+
+    const now = new Date();
+    const expires = new Date(record.expires_at);
+    if (now > expires) {
+      return res.status(400).json({
+        success: false,
+        message: 'รหัสยืนยันหมดอายุแล้ว (อายุ 15 นาที) กรุณากดขอรหัสใหม่อีกครั้ง'
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: 'รหัสยืนยันถูกต้อง กรุณาตั้งรหัสผ่านใหม่'
+    });
+  } catch (err) {
+    console.error('Verify reset OTP error:', err);
+    return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการตรวจสอบรหัสยืนยัน' });
+  }
+}
+
+// ตั้งรหัสผ่านใหม่ (Reset Password)
+async function resetPassword(req, res) {
+  try {
+    const { email, otp, newPassword } = req.body;
+
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({ success: false, message: 'กรุณากรอกข้อมูลให้ครบถ้วน' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ success: false, message: 'รหัสผ่านใหม่ต้องมีความยาวอย่างน้อย 6 ตัวอักษร' });
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanOtp = otp.toString().trim();
+
+    // ตรวจสอบ OTP อีกครั้งเพื่อความปลอดภัย
+    const record = await db.get(
+      `SELECT * FROM password_resets 
+       WHERE LOWER(email) = ? AND otp = ? AND used = 0 
+       ORDER BY id DESC LIMIT 1`,
+      [cleanEmail, cleanOtp]
+    );
+
+    if (!record) {
+      return res.status(400).json({
+        success: false,
+        message: 'รหัสยืนยันไม่ถูกต้องหรือถูกใช้งานไปแล้ว'
+      });
+    }
+
+    const now = new Date();
+    const expires = new Date(record.expires_at);
+    if (now > expires) {
+      return res.status(400).json({
+        success: false,
+        message: 'รหัสยืนยันหมดอายุแล้ว กรุณากดขอรหัสใหม่อีกครั้ง'
+      });
+    }
+
+    // แฮชรหัสผ่านใหม่ด้วย bcrypt
+    const password_hash = await bcrypt.hash(newPassword, 10);
+
+    // อัปเดตรหัสผ่านใหม่ของผู้ใช้
+    await db.run(
+      `UPDATE users SET password_hash = ? WHERE LOWER(email) = ?`,
+      [password_hash, cleanEmail]
+    );
+
+    // ทำเครื่องหมายว่า OTP นี้ถูกใช้งานแล้ว
+    await db.run(
+      `UPDATE password_resets SET used = 1 WHERE id = ?`,
+      [record.id]
+    );
+
+    return res.json({
+      success: true,
+      message: 'ตั้งรหัสผ่านใหม่สำเร็จเรียบร้อยแล้ว คุณสามารถเข้าสู่ระบบด้วยรหัสผ่านใหม่ได้ทันที'
+    });
+  } catch (err) {
+    console.error('Reset password error:', err);
+    return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการตั้งรหัสผ่านใหม่' });
+  }
+}
+
 module.exports = {
   register,
   login,
   getMe,
-  updateProfile
+  updateProfile,
+  forgotPassword,
+  verifyResetOtp,
+  resetPassword
 };

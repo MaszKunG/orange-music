@@ -16,4 +16,13 @@ router.get('/me', authenticateToken, authController.getMe);
 // แก้ไขโปรไฟล์ส่วนตัว
 router.put('/profile', authenticateToken, uploadAvatarFile, authController.updateProfile);
 
+// ลืมรหัสผ่าน (ส่งรหัส OTP ไปที่อีเมล)
+router.post('/forgot-password', authController.forgotPassword);
+
+// ตรวจสอบรหัสยืนยัน OTP
+router.post('/verify-reset-otp', authController.verifyResetOtp);
+
+// ตั้งรหัสผ่านใหม่
+router.post('/reset-password', authController.resetPassword);
+
 module.exports = router;

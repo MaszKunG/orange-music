@@ -17,6 +17,7 @@ import CategoriesPage from './pages/CategoriesPage';
 import SongDetailPage from './pages/SongDetailPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ProfilePage from './pages/ProfilePage';
 import MyPlaylistsPage from './pages/MyPlaylistsPage';
 import PlaylistDetailPage from './pages/PlaylistDetailPage';
@@ -82,6 +83,7 @@ function MainLayout() {
               <Route path="/songs/:id" element={<SongDetailPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
+              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
               {/* ผู้ใช้ทั่วไป (ต้องล็อกอิน) */}
               <Route
