@@ -423,21 +423,9 @@ async function initDatabase() {
 
     console.log('🎉 Seed ข้อมูลระบบสำเร็จเรียบร้อย พร้อมเพลงทั้ง 3 สถานะ (approved, pending, rejected)!');
   } else {
-    // กรณีมีข้อมูลเดิมอยู่แล้ว ให้อัปเดตเพลงเดิมให้มีสถานะ approved, pending, rejected ครบเพื่อการทดสอบ
+    // กรณีมีข้อมูลเดิมอยู่แล้ว เพลงที่มีอยู่แล้วหากยังไม่มีสถานะให้เป็น approved ตามค่าเริ่มต้น (ไม่แตะต้องเพลงที่แอดมินอนุมัติหรือปฏิเสธไปแล้ว)
     try {
-      const existingSongs = await db.all(`SELECT id FROM songs ORDER BY id ASC`);
-      if (existingSongs.length > 0) {
-        // ให้เพลงแรกๆ เป็น approved
-        await db.run(`UPDATE songs SET status = 'approved' WHERE status IS NULL OR status = ''`);
-        if (existingSongs.length >= 5) {
-          // ตั้งเพลงที่ 5 เป็น pending
-          await db.run(`UPDATE songs SET status = 'pending', reviewed_by = NULL, reviewed_at = NULL, reject_reason = NULL WHERE id = ?`, [existingSongs[4].id]);
-        }
-        if (existingSongs.length >= 6) {
-          // ตั้งเพลงที่ 6 เป็น rejected
-          await db.run(`UPDATE songs SET status = 'rejected', reject_reason = 'พบเสียงรบกวน (Audio Noise/Clipping) ในช่วงนาทีสุดท้ายของเพลง กรุณา Export ไฟล์เสียงใหม่ที่มีคุณภาพคมชัด แล้วกดส่งตรวจอีกครั้ง' WHERE id = ?`, [existingSongs[5].id]);
-        }
-      }
+      await db.run(`UPDATE songs SET status = 'approved' WHERE status IS NULL OR status = ''`);
     } catch (e) {
       console.warn('Sync status note:', e.message);
     }
