@@ -131,6 +131,10 @@ async function initDatabase() {
       await db.run(`ALTER TABLE songs ADD COLUMN source_type TEXT DEFAULT 'file'`);
       console.log('➕ Migration: เพิ่มคอลัมน์ source_type ในตาราง songs สำเร็จ');
     }
+    if (!columnNames.includes('language')) {
+      await db.run(`ALTER TABLE songs ADD COLUMN language TEXT DEFAULT NULL`);
+      console.log('➕ Migration: เพิ่มคอลัมน์ language ในตาราง songs สำเร็จ');
+    }
   } catch (migErr) {
     console.warn('Migration note:', migErr.message);
   }

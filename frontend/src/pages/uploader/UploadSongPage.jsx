@@ -10,6 +10,7 @@ export default function UploadSongPage() {
   const [title, setTitle] = useState('');
   const [artist, setArtist] = useState('');
   const [categoryId, setCategoryId] = useState('');
+  const [language, setLanguage] = useState(''); // 'thai' | 'international' | ''
   const [description, setDescription] = useState('');
   const [lyrics, setLyrics] = useState('');
   const [audioFile, setAudioFile] = useState(null);
@@ -34,9 +35,13 @@ export default function UploadSongPage() {
     try {
       const res = await api.get('/categories');
       if (res.success) {
-        setCategories(res.categories);
-        if (res.categories.length > 0) {
-          setCategoryId(res.categories[0].id.toString());
+        // กรองเฉพาะหมวดแนวเพลง (ไม่เอาหมวดภาษา เพลงไทย/เพลงสากล)
+        const genreCategories = res.categories.filter(c =>
+          !c.name.includes('เพลงไทย') && !c.name.includes('เพลงสากล') && !c.name.includes('International') && !c.name.includes('Thai Music')
+        );
+        setCategories(genreCategories);
+        if (genreCategories.length > 0) {
+          setCategoryId(genreCategories[0].id.toString());
         }
       }
     } catch (err) {
@@ -136,6 +141,7 @@ export default function UploadSongPage() {
       formData.append('title', title.trim());
       formData.append('artist', artist.trim());
       if (categoryId) formData.append('category_id', categoryId);
+      if (language) formData.append('language', language);
       if (description.trim()) formData.append('description', description.trim());
       if (lyrics.trim()) formData.append('lyrics', lyrics.trim());
 
@@ -315,21 +321,41 @@ export default function UploadSongPage() {
           </div>
 
           {/* หมวดหมู่เพลง */}
-          <div>
-            <label className="block text-xs font-bold text-text-sub uppercase mb-1.5">
-              หมวดหมู่บทเพลง
-            </label>
-            <select
-              value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
-              className="w-full bg-dark-card text-white text-sm px-4 py-2.5 rounded-xl border border-dark-border focus:border-orange-500 focus:outline-none"
-            >
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* ภาษา / สัญชาติเพลง */}
+            <div>
+              <label className="block text-xs font-bold text-text-sub uppercase mb-1.5">
+                ภาษา / สัญชาติเพลง
+              </label>
+              <select
+                value={language}
+                onChange={(e) => setLanguage(e.target.value)}
+                className="w-full bg-dark-card text-white text-sm px-4 py-2.5 rounded-xl border border-dark-border focus:border-orange-500 focus:outline-none"
+              >
+                <option value="">🌐 ไม่ระบุ</option>
+                <option value="thai">🇹🇭 เพลงไทย</option>
+                <option value="international">🌍 เพลงสากล</option>
+              </select>
+            </div>
+
+            {/* แนวเพลง / ประเภท */}
+            <div>
+              <label className="block text-xs font-bold text-text-sub uppercase mb-1.5">
+                แนวเพลง / ประเภท
+              </label>
+              <select
+                value={categoryId}
+                onChange={(e) => setCategoryId(e.target.value)}
+                className="w-full bg-dark-card text-white text-sm px-4 py-2.5 rounded-xl border border-dark-border focus:border-orange-500 focus:outline-none"
+              >
+                <option value="">-- ไม่ระบุแนวเพลง --</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {/* ส่วนอัปโหลดไฟล์เสียงและรูปปก */}

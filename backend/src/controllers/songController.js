@@ -6,7 +6,7 @@ const { saveUploadedFile } = require('../services/storageService');
 // ดึงรายการเพลงทั้งหมด (พร้อมระบบ Filter, ค้นหา, เรียงลำดับ, และการตรวจสอบสถานะ Approval)
 async function getAllSongs(req, res) {
   try {
-    const { search, category_id, sort, uploader_id, status, limit = 50, offset = 0 } = req.query;
+    const { search, category_id, sort, uploader_id, status, language, limit = 50, offset = 0 } = req.query;
     const currentUser = req.user || null;
     const currentUserId = currentUser ? currentUser.id : null;
     const isAdmin = currentUser && currentUser.role === 'admin';
@@ -15,7 +15,7 @@ async function getAllSongs(req, res) {
       SELECT 
         s.id, s.title, s.artist, s.category_id, s.uploader_id, s.description, 
         s.lyrics, s.audio_path, s.cover_path, s.play_count, s.status, s.reviewed_by, 
-        s.reviewed_at, s.reject_reason, s.created_at,
+        s.reviewed_at, s.reject_reason, s.created_at, s.language,
         c.name AS category_name,
         u.full_name AS uploader_name,
         (SELECT COUNT(*) FROM likes WHERE song_id = s.id) AS like_count,
@@ -60,6 +60,11 @@ async function getAllSongs(req, res) {
     if (category_id) {
       query += ` AND s.category_id = ?`;
       params.push(category_id);
+    }
+
+    if (language) {
+      query += ` AND s.language = ?`;
+      params.push(language);
     }
 
     if (uploader_id && !isOwnerViewingOwnSongs) {
@@ -213,7 +218,7 @@ async function getYouTubeInfo(req, res) {
 // รองรับทั้งไฟล์เพลงในเครื่อง และลิงก์จาก YouTube
 async function uploadSong(req, res) {
   try {
-    const { title, artist, category_id, description, lyrics, youtube_url, youtube_id, source_type } = req.body;
+    const { title, artist, category_id, description, lyrics, youtube_url, youtube_id, source_type, language } = req.body;
 
     const ytId = extractYouTubeVideoId(youtube_url || youtube_id);
     const isYouTube = source_type === 'youtube' || Boolean(ytId);
@@ -261,9 +266,9 @@ async function uploadSong(req, res) {
       INSERT INTO songs (
         title, artist, category_id, uploader_id, description, lyrics,
         audio_path, cover_path, play_count, status, reviewed_by, reviewed_at,
-        reject_reason, youtube_id, source_type
+        reject_reason, youtube_id, source_type, language
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, NULL, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, NULL, ?, ?, ?)
     `, [
       title.trim(),
       artist.trim(),
@@ -277,7 +282,8 @@ async function uploadSong(req, res) {
       reviewedBy,
       reviewedAt,
       finalYoutubeId,
-      finalSourceType
+      finalSourceType,
+      language && ['thai', 'international'].includes(language) ? language : null
     ]);
 
     // บันทึกไฟล์เสียงลงฐานข้อมูล Turso เพื่อป้องกันไฟล์หายเมื่อ Render รีสตาร์ท (เฉพาะไฟล์ในเครื่อง)
