@@ -123,6 +123,8 @@ async function sendPasswordResetEmail(toEmail, username, otp) {
       html: htmlContent,
     });
 
+    console.log(`✅ [EMAIL SENT] ส่งอีเมลไปยัง ${toEmail} สำเร็จแล้ว (MessageID: ${info?.messageId})`);
+
     if (info && info.messageId && nodemailer.getTestMessageUrl) {
       const previewUrl = nodemailer.getTestMessageUrl(info);
       if (previewUrl) {
