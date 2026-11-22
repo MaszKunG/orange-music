@@ -2,23 +2,21 @@ const nodemailer = require('nodemailer');
 
 let transporter = null;
 
-// สร้างหรือดึง Transporter สำหรับส่งอีเมล
+// สร้างหรือดึง Transporter สำหรับส่งอีเมล (โหมด SMTP)
 async function getTransporter() {
   if (transporter) return transporter;
 
   const host = process.env.SMTP_HOST ? process.env.SMTP_HOST.trim() : '';
   const port = process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT, 10) : 587;
   const user = process.env.SMTP_USER ? process.env.SMTP_USER.trim() : '';
-  // ลบช่องว่างออกอัตโนมัติ เผื่อผู้ใช้คัดลอก App Password ของ Google ที่มีช่องว่างมา
   const pass = process.env.SMTP_PASS ? process.env.SMTP_PASS.replace(/\s+/g, '') : '';
 
   if (host && user && pass) {
-    // ใช้ SMTP จาก Environment Variables (เช่น Gmail, Brevo, SendGrid ฯลฯ)
     transporter = nodemailer.createTransport({
       host,
       port,
       secure: port === 465,
-      pool: true, // เปิด Connection Pooling เพื่อเชื่อมต่อค้างไว้ ไม่ต้อง Handshake ใหม่ทุกครั้ง
+      pool: true,
       maxConnections: 5,
       maxMessages: 100,
       auth: {
@@ -29,10 +27,9 @@ async function getTransporter() {
         rejectUnauthorized: false
       }
     });
-    console.log(`📧 ระบบอีเมล: เชื่อมต่อ SMTP Server ที่ ${host}:${port} (Pooled)`);
+    console.log(`📧 ระบบอีเมล: เตรียม SMTP Server ที่ ${host}:${port}`);
   } else {
-    // ถ้ายังไม่ได้ตั้งค่า SMTP ให้จำลองการส่ง และใช้อีเมลทดสอบ Ethereal หรือ Console Log
-    console.log('📧 ระบบอีเมล: ยังไม่ได้ระบุ SMTP credentials ใน .env (จะแสดงรหัสยืนยันในคอนโซลและคืนค่าเพื่อความสะดวกในการทดสอบ)');
+    console.log('📧 ระบบอีเมล: ยังไม่ได้ระบุ SMTP credentials ใน .env');
     try {
       const testAccount = await nodemailer.createTestAccount();
       transporter = nodemailer.createTransport({
@@ -45,9 +42,8 @@ async function getTransporter() {
         },
       });
     } catch (e) {
-      // Mock transporter
       transporter = {
-        sendMail: async (opts) => ({ messageId: 'mock-id', mock: true })
+        sendMail: async () => ({ messageId: 'mock-id', mock: true })
       };
     }
   }
@@ -55,12 +51,69 @@ async function getTransporter() {
   return transporter;
 }
 
+// ส่งผ่าน Brevo REST API (HTTPS Port 443 - ไม่โดน Render Free บล็อก 100%)
+async function sendViaBrevo(toEmail, username, otp, htmlContent) {
+  const apiKey = process.env.BREVO_API_KEY.trim();
+  const senderEmail = process.env.SMTP_USER || process.env.EMAIL_FROM || 'orangemusicreal@gmail.com';
+  const cleanSender = senderEmail.includes('<') ? senderEmail.match(/<([^>]+)>/)?.[1] || senderEmail : senderEmail;
+
+  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'accept': 'application/json',
+      'api-key': apiKey,
+      'content-type': 'application/json'
+    },
+    body: JSON.stringify({
+      sender: { name: 'Orange Music', email: cleanSender },
+      to: [{ email: toEmail, name: username || 'User' }],
+      subject: `[Orange Music] รหัสยืนยันตั้งรหัสผ่านใหม่: ${otp}`,
+      htmlContent: htmlContent
+    })
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.message || `Brevo error ${res.status}`);
+  }
+
+  console.log(`✅ [BREVO API SENT] ส่งอีเมลถึง ${toEmail} สำเร็จ! MessageID:`, data.messageId);
+  return { success: true, messageId: data.messageId };
+}
+
+// ส่งผ่าน Resend REST API (HTTPS Port 443)
+async function sendViaResend(toEmail, username, otp, htmlContent) {
+  const apiKey = process.env.RESEND_API_KEY.trim();
+  const from = process.env.EMAIL_FROM || 'Orange Music <onboarding@resend.dev>';
+
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      from,
+      to: [toEmail],
+      subject: `[Orange Music] รหัสยืนยันตั้งรหัสผ่านใหม่: ${otp}`,
+      html: htmlContent
+    })
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.message || `Resend error ${res.status}`);
+  }
+
+  console.log(`✅ [RESEND API SENT] ส่งอีเมลถึง ${toEmail} สำเร็จ! MessageID:`, data.id);
+  return { success: true, messageId: data.id };
+}
+
 /**
  * ส่งรหัสยืนยัน (OTP) สำหรับรีเซ็ตรหัสผ่านไปยังอีเมลของผู้ใช้
  */
 async function sendPasswordResetEmail(toEmail, username, otp) {
-  const mailTransporter = await getTransporter();
-  const fromAddress = process.env.EMAIL_FROM || '"Orange Music 🍊" <no-reply@orange.music>';
+  const fromAddress = process.env.EMAIL_FROM || '"Orange Music 🍊" <orangemusicreal@gmail.com>';
 
   const htmlContent = `
     <!DOCTYPE html>
@@ -117,7 +170,27 @@ async function sendPasswordResetEmail(toEmail, username, otp) {
   console.log(`⏱️ หมดอายุใน: 15 นาที`);
   console.log(`========================================\n`);
 
+  // 1. ลองส่งผ่าน Brevo REST API ก่อน (ถ้ามีการตั้งค่า BREVO_API_KEY)
+  if (process.env.BREVO_API_KEY) {
+    try {
+      return await sendViaBrevo(toEmail, username, otp, htmlContent);
+    } catch (e) {
+      console.error('Brevo API send failed, fallback to others:', e.message);
+    }
+  }
+
+  // 2. ลองส่งผ่าน Resend REST API (ถ้ามีการตั้งค่า RESEND_API_KEY)
+  if (process.env.RESEND_API_KEY) {
+    try {
+      return await sendViaResend(toEmail, username, otp, htmlContent);
+    } catch (e) {
+      console.error('Resend API send failed, fallback to others:', e.message);
+    }
+  }
+
+  // 3. Fallback: ส่งผ่าน Nodemailer SMTP (กรณีรันบน Local หรือเครื่องที่ไม่ถูกบล็อกพอร์ต)
   try {
+    const mailTransporter = await getTransporter();
     const info = await mailTransporter.sendMail({
       from: fromAddress,
       to: toEmail,
@@ -126,19 +199,10 @@ async function sendPasswordResetEmail(toEmail, username, otp) {
       html: htmlContent,
     });
 
-    console.log(`✅ [EMAIL SENT] ส่งอีเมลไปยัง ${toEmail} สำเร็จแล้ว (MessageID: ${info?.messageId})`);
-
-    if (info && info.messageId && nodemailer.getTestMessageUrl) {
-      const previewUrl = nodemailer.getTestMessageUrl(info);
-      if (previewUrl) {
-        console.log(`🔗 ดูอีเมลทดสอบ Ethereal ได้ที่: ${previewUrl}`);
-      }
-    }
-
+    console.log(`✅ [SMTP SENT] ส่งอีเมลไปยัง ${toEmail} สำเร็จแล้ว (MessageID: ${info?.messageId})`);
     return { success: true, messageId: info?.messageId };
   } catch (err) {
-    console.error('Send mail error:', err);
-    // แม้ SMTP ภายนอกจะส่งไม่ผ่าน แต่ใน dev ให้ยังทำงานต่อได้
+    console.error('Send mail error (SMTP):', err.message);
     return { success: false, error: err.message };
   }
 }
