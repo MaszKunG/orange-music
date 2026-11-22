@@ -22,6 +22,7 @@ export default function LandingHomePage() {
   const [songs, setSongs] = useState([]);
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null);
+  const [musicOrigin, setMusicOrigin] = useState('all'); // 'all', 'thai', 'inter'
   const [loading, setLoading] = useState(true);
   const { playSong } = usePlayer();
   const { isAuthenticated, isUploader } = useAuth();
@@ -52,9 +53,23 @@ export default function LandingHomePage() {
     }
   };
 
-  const popularSongs = [...songs].sort((a, b) => (b.play_count || 0) - (a.play_count || 0)).slice(0, 4);
-  const newestSongs = [...songs].slice(0, 8);
-  const featuredSong = songs[0];
+  // ตรวจจับเพลงไทย vs เพลงสากล
+  const isThaiSong = (song) => {
+    if (song.category_name && (song.category_name.includes('เพลงไทย') || song.category_name.includes('Thai'))) return true;
+    if (song.category_name && (song.category_name.includes('เพลงสากล') || song.category_name.includes('International'))) return false;
+    const thaiRegex = /[\u0E00-\u0E7F]/;
+    return thaiRegex.test(song.title || '') || thaiRegex.test(song.artist || '') || thaiRegex.test(song.lyrics || '');
+  };
+
+  const filteredSongs = songs.filter((song) => {
+    if (musicOrigin === 'thai') return isThaiSong(song);
+    if (musicOrigin === 'inter') return !isThaiSong(song);
+    return true;
+  });
+
+  const popularSongs = [...filteredSongs].sort((a, b) => (b.play_count || 0) - (a.play_count || 0)).slice(0, 4);
+  const newestSongs = [...filteredSongs].slice(0, 8);
+  const featuredSong = filteredSongs[0] || songs[0];
 
   return (
     <div className="space-y-10 pb-20">
@@ -174,18 +189,56 @@ export default function LandingHomePage() {
         </div>
       </section>
 
-      {/* 2. Quick Category Filter Pills */}
-      <section className="space-y-3">
+      {/* 2. Quick Filter: แยกหมวดเพลงไทย & สากล + แนวเพลง */}
+      <section className="space-y-3.5">
+        {/* แถบสลับหมวด เพลงไทย / เพลงสากล */}
+        <div className="flex items-center space-x-2 border-b border-dark-borderSubtle pb-2.5 overflow-x-auto scrollbar-none">
+          <button
+            onClick={() => setMusicOrigin('all')}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 whitespace-nowrap ${
+              musicOrigin === 'all'
+                ? 'bg-orange-500 text-black shadow-glow-orange-sm'
+                : 'bg-dark-surface/70 hover:bg-dark-card text-text-sub hover:text-white border border-dark-border'
+            }`}
+          >
+            <span>🎵</span>
+            <span>ทั้งหมดทุกภาษา</span>
+          </button>
+          <button
+            onClick={() => setMusicOrigin('thai')}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 whitespace-nowrap ${
+              musicOrigin === 'thai'
+                ? 'bg-orange-500 text-black shadow-glow-orange-sm'
+                : 'bg-dark-surface/70 hover:bg-dark-card text-text-sub hover:text-white border border-dark-border'
+            }`}
+          >
+            <span>🇹🇭</span>
+            <span>หมวดเพลงไทย (Thai)</span>
+          </button>
+          <button
+            onClick={() => setMusicOrigin('inter')}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 whitespace-nowrap ${
+              musicOrigin === 'inter'
+                ? 'bg-orange-500 text-black shadow-glow-orange-sm'
+                : 'bg-dark-surface/70 hover:bg-dark-card text-text-sub hover:text-white border border-dark-border'
+            }`}
+          >
+            <span>🌍</span>
+            <span>หมวดเพลงสากล (International)</span>
+          </button>
+        </div>
+
+        {/* Quick Category Filter Pills */}
         <div className="flex items-center space-x-2 overflow-x-auto pb-2 scrollbar-none">
           <button
             onClick={() => setSelectedCategory(null)}
             className={`px-4 py-2 rounded-full text-xs font-bold tracking-wide uppercase transition-all whitespace-nowrap ${
               selectedCategory === null
-                ? 'bg-orange-500 text-black shadow-glow-orange-sm'
+                ? 'bg-orange-500/20 text-orange-400 border border-orange-500/60 shadow-glow-orange-sm'
                 : 'bg-dark-card hover:bg-dark-surface text-text-sub hover:text-white border border-dark-border'
             }`}
           >
-            ทั้งหมด (All)
+            ทุกแนวเพลง (All Genres)
           </button>
           {categories.map((cat) => (
             <button
@@ -193,7 +246,7 @@ export default function LandingHomePage() {
               onClick={() => setSelectedCategory(cat.id)}
               className={`px-4 py-2 rounded-full text-xs font-bold tracking-wide uppercase transition-all whitespace-nowrap ${
                 selectedCategory === cat.id
-                  ? 'bg-orange-500 text-black shadow-glow-orange-sm'
+                  ? 'bg-orange-500/20 text-orange-400 border border-orange-500/60 shadow-glow-orange-sm'
                   : 'bg-dark-card hover:bg-dark-surface text-text-sub hover:text-white border border-dark-border'
               }`}
             >
@@ -230,7 +283,13 @@ export default function LandingHomePage() {
           <div className="flex items-center space-x-2">
             <Clock className="w-5 h-5 text-orange-500" />
             <h2 className="text-xl font-bold text-white">
-              {selectedCategory ? 'เพลงในหมวดหมู่นี้' : 'เพลงมาใหม่ & แนะนำ (New Releases)'}
+              {selectedCategory
+                ? 'เพลงในหมวดหมู่นี้'
+                : musicOrigin === 'thai'
+                ? '🇹🇭 เพลงไทยมาใหม่ & ยอดนิยม'
+                : musicOrigin === 'inter'
+                ? '🌍 เพลงสากลมาใหม่ & ยอดนิยม'
+                : 'เพลงมาใหม่ & แนะนำ (New Releases)'}
             </h2>
           </div>
           <Link to="/search" className="text-xs font-semibold text-orange-400 hover:underline">
@@ -242,16 +301,16 @@ export default function LandingHomePage() {
           <div className="text-center py-12 text-text-muted text-sm">
             กำลังโหลดรายการเพลง...
           </div>
-        ) : songs.length === 0 ? (
+        ) : filteredSongs.length === 0 ? (
           <div className="text-center py-12 bg-dark-surface rounded-2xl border border-dark-border p-8">
             <Headphones className="w-12 h-12 text-text-muted mx-auto mb-3" />
-            <p className="text-sm font-semibold text-white">ยังไม่มีเพลงในหมวดนี้</p>
-            <p className="text-xs text-text-sub mt-1">เลือกหมวดหมู่อื่น หรือเป็นคนแรกที่อัปโหลดเพลงในหมวดนี้</p>
+            <p className="text-sm font-semibold text-white">ยังไม่มีเพลงในหมวดที่เลือก</p>
+            <p className="text-xs text-text-sub mt-1">ลองเปลี่ยนภาษาหรือเลือกหมวดหมู่อื่น หรือเป็นคนแรกที่อัปโหลดเพลงในหมวดนี้</p>
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-4">
             {newestSongs.map((song) => (
-              <SongCard key={song.id} song={song} playlist={songs} />
+              <SongCard key={song.id} song={song} playlist={filteredSongs} />
             ))}
           </div>
         )}

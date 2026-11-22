@@ -202,8 +202,10 @@ async function initDatabase() {
       VALUES (?, ?, ?, ?, 'user', ?)
     `, ['student_som', 'student@orange.music', userPassword, 'น้องส้ม นิสิตจุฬาฯ', 'https://api.dicebear.com/7.x/bottts/svg?seed=orangeStudent']);
 
-    // 3. สร้างหมวดหมู่ตัวอย่าง
+    // 3. สร้างหมวดหมู่ตัวอย่าง (รวมหมวดเพลงไทยและเพลงสากล)
     const categories = [
+      { name: '🇹🇭 เพลงไทย (Thai Music)', description: 'รวมบทเพลงไทยคุณภาพ ทุกแนวเพลง โดนใจคนไทย ฟังสบายได้ตลอดวัน' },
+      { name: '🌍 เพลงสากล (International)', description: 'เพลงสากลภาษาอังกฤษและต่างประเทศยอดนิยม ฟังสบาย เติมเต็มบรรยากาศอินเตอร์' },
       { name: 'เพลงสำหรับอ่านหนังสือ (Study & Focus)', description: 'ดนตรีโทนสบาย ผ่อนคลาย เพิ่มสมาธิในการอ่านหนังสือและทำงาน' },
       { name: 'อะคูสติก & โฟล์ก (Acoustic & Folk)', description: 'เสียงกีตาร์โปร่งนุ่มละมุน เมโลดี้อบอุ่นหัวใจ' },
       { name: 'ป๊อปฟังสบาย (Pop Chill)', description: 'เพลงป๊อปจังหวะกำลังดี สดชื่นเติมพลังระหว่างวัน' },
@@ -426,6 +428,19 @@ async function initDatabase() {
     // กรณีมีข้อมูลเดิมอยู่แล้ว เพลงที่มีอยู่แล้วหากยังไม่มีสถานะให้เป็น approved ตามค่าเริ่มต้น (ไม่แตะต้องเพลงที่แอดมินอนุมัติหรือปฏิเสธไปแล้ว)
     try {
       await db.run(`UPDATE songs SET status = 'approved' WHERE status IS NULL OR status = ''`);
+
+      // ตรวจสอบและเพิ่มหมวดหมู่ เพลงไทย และ เพลงสากล หากยังไม่มีในฐานข้อมูล
+      const langCategories = [
+        { name: '🇹🇭 เพลงไทย (Thai Music)', description: 'รวมบทเพลงไทยคุณภาพ ทุกแนวเพลง โดนใจคนไทย ฟังสบายได้ตลอดวัน' },
+        { name: '🌍 เพลงสากล (International)', description: 'เพลงสากลภาษาอังกฤษและต่างประเทศยอดนิยม ฟังสบาย เติมเต็มบรรยากาศอินเตอร์' }
+      ];
+      for (const cat of langCategories) {
+        const exists = await db.get(`SELECT id FROM categories WHERE name = ? OR name LIKE ?`, [cat.name, `%${cat.name.includes('เพลงไทย') ? 'เพลงไทย' : 'เพลงสากล'}%`]);
+        if (!exists) {
+          await db.run(`INSERT INTO categories (name, description) VALUES (?, ?)`, [cat.name, cat.description]);
+          console.log(`✅ เพิ่มหมวดหมู่ใหม่: ${cat.name}`);
+        }
+      }
     } catch (e) {
       console.warn('Sync status note:', e.message);
     }

@@ -38,13 +38,47 @@ export default function CategoriesPage() {
     }
   };
 
+  const getCatIcon = (name = '') => {
+    if (name.includes('เพลงไทย') || name.includes('🇹🇭')) return '🇹🇭';
+    if (name.includes('เพลงสากล') || name.includes('🌍') || name.includes('International')) return '🌍';
+    if (name.includes('อ่านหนังสือ') || name.includes('Study')) return '📚';
+    if (name.includes('อะคูสติก') || name.includes('Acoustic')) return '🎸';
+    if (name.includes('ป๊อป') || name.includes('Pop')) return '🎧';
+    if (name.includes('เปียโน') || name.includes('Piano')) return '🎹';
+    if (name.includes('อินดี้') || name.includes('Lo-Fi')) return '☕';
+    if (name.includes('พลังบวก') || name.includes('Rock')) return '🔥';
+    return '🍊';
+  };
+
   const loadSongs = async () => {
     if (!selectedCategory) return;
     try {
       setLoading(true);
       const res = await api.get(`/songs?category_id=${selectedCategory}`);
-      if (res.success) {
+      if (res.success && res.songs.length > 0) {
         setSongs(res.songs);
+      } else {
+        // ถ้าหมวดหมู่นี้ยังไม่มีเพลงผูกตรงๆ แต่เป็นหมวดเพลงไทยหรือสากล ให้ดึงเพลงตามภาษามาแสดง
+        const cat = categories.find((c) => c.id === selectedCategory);
+        if (cat && (cat.name.includes('เพลงไทย') || cat.name.includes('Thai'))) {
+          const allRes = await api.get('/songs');
+          if (allRes.success) {
+            const thaiSongs = allRes.songs.filter(
+              (s) => /[\u0E00-\u0E7F]/.test(s.title || '') || /[\u0E00-\u0E7F]/.test(s.artist || '')
+            );
+            setSongs(thaiSongs);
+          }
+        } else if (cat && (cat.name.includes('เพลงสากล') || cat.name.includes('International'))) {
+          const allRes = await api.get('/songs');
+          if (allRes.success) {
+            const interSongs = allRes.songs.filter(
+              (s) => !/[\u0E00-\u0E7F]/.test(s.title || '') && !/[\u0E00-\u0E7F]/.test(s.artist || '')
+            );
+            setSongs(interSongs);
+          }
+        } else {
+          setSongs(res.songs || []);
+        }
       }
     } catch (err) {
       console.error(err);
@@ -85,9 +119,9 @@ export default function CategoriesPage() {
               }`}
             >
               <div>
-                <span className="text-xl">🍊</span>
+                <span className="text-xl">{getCatIcon(cat.name)}</span>
                 <p className={`text-xs font-bold mt-1 line-clamp-2 ${isSelected ? 'text-orange-400' : 'text-white'}`}>
-                  {cat.name.split('(')[0]}
+                  {cat.name.replace(/^[^\w\s\u0E00-\u0E7F]+\s*/, '').split('(')[0]}
                 </p>
               </div>
               <span className="text-[10px] text-text-muted">{cat.song_count || 0} เพลง</span>

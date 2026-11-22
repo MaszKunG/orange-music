@@ -12,11 +12,25 @@ export default function SearchPage() {
 
   const [query, setQuery] = useState(initialQuery);
   const [activeTab, setActiveTab] = useState('all'); // 'all', 'songs', 'artists', 'categories'
+  const [originFilter, setOriginFilter] = useState('all'); // 'all', 'thai', 'inter'
   const [sortBy, setSortBy] = useState(initialSort);
   const [songs, setSongs] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
   const { playSong } = usePlayer();
+
+  const isThaiSong = (s) => {
+    if (s.category_name && (s.category_name.includes('เพลงไทย') || s.category_name.includes('Thai'))) return true;
+    if (s.category_name && (s.category_name.includes('เพลงสากล') || s.category_name.includes('International'))) return false;
+    const thaiRegex = /[\u0E00-\u0E7F]/;
+    return thaiRegex.test(s.title || '') || thaiRegex.test(s.artist || '');
+  };
+
+  const displayedSongs = songs.filter((s) => {
+    if (originFilter === 'thai') return isThaiSong(s);
+    if (originFilter === 'inter') return !isThaiSong(s);
+    return true;
+  });
 
   useEffect(() => {
     fetchResults();
@@ -87,12 +101,52 @@ export default function SearchPage() {
           <Search className="w-5 h-5 text-orange-500 absolute left-4 top-1/2 -translate-y-1/2" />
         </form>
 
+        {/* แถบแยกสัญชาติเพลง: ทั้งหมด / เพลงไทย / เพลงสากล */}
+        <div className="flex items-center space-x-2 pt-1 overflow-x-auto scrollbar-none">
+          <button
+            type="button"
+            onClick={() => setOriginFilter('all')}
+            className={`px-3 py-1 rounded-xl text-xs font-bold transition-all flex items-center space-x-1 whitespace-nowrap ${
+              originFilter === 'all'
+                ? 'bg-orange-500 text-black shadow-glow-orange-sm'
+                : 'bg-dark-card text-text-sub hover:text-white border border-dark-border'
+            }`}
+          >
+            <span>🎵</span>
+            <span>ทั้งหมดทุกภาษา</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setOriginFilter('thai')}
+            className={`px-3 py-1 rounded-xl text-xs font-bold transition-all flex items-center space-x-1 whitespace-nowrap ${
+              originFilter === 'thai'
+                ? 'bg-orange-500 text-black shadow-glow-orange-sm'
+                : 'bg-dark-card text-text-sub hover:text-white border border-dark-border'
+            }`}
+          >
+            <span>🇹🇭</span>
+            <span>หมวดเพลงไทย (Thai)</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setOriginFilter('inter')}
+            className={`px-3 py-1 rounded-xl text-xs font-bold transition-all flex items-center space-x-1 whitespace-nowrap ${
+              originFilter === 'inter'
+                ? 'bg-orange-500 text-black shadow-glow-orange-sm'
+                : 'bg-dark-card text-text-sub hover:text-white border border-dark-border'
+            }`}
+          >
+            <span>🌍</span>
+            <span>หมวดเพลงสากล (International)</span>
+          </button>
+        </div>
+
         {/* แถบแยกแท็บ: ทั้งหมด / เพลง / ศิลปิน / หมวดหมู่ */}
         <div className="flex items-center justify-between flex-wrap gap-2 pt-2">
           <div className="flex items-center space-x-2">
             {[
               { id: 'all', label: 'ทั้งหมด', icon: Grid },
-              { id: 'songs', label: `เพลง (${songs.length})`, icon: Music },
+              { id: 'songs', label: `เพลง (${displayedSongs.length})`, icon: Music },
               { id: 'artists', label: `ศิลปิน (${artists.length})`, icon: User },
               { id: 'categories', label: `หมวดหมู่ (${categories.length})`, icon: Grid },
             ].map((tab) => {
@@ -198,18 +252,18 @@ export default function SearchPage() {
             <div className="space-y-3">
               <h3 className="text-base font-bold text-white flex items-center space-x-2">
                 <Music className="w-4 h-4 text-orange-500" />
-                <span>เพลง ({songs.length})</span>
+                <span>เพลง ({displayedSongs.length})</span>
               </h3>
 
-              {songs.length === 0 ? (
+              {displayedSongs.length === 0 ? (
                 <div className="text-center py-12 bg-dark-surface rounded-2xl border border-dark-border p-6">
                   <p className="text-sm font-semibold text-white">ไม่พบเพลงที่ตรงกับการค้นหา</p>
-                  <p className="text-xs text-text-sub mt-1">ลองเปลี่ยนคำค้นหา หรือค้นหาด้วยชื่อศิลปินอื่น</p>
+                  <p className="text-xs text-text-sub mt-1">ลองเปลี่ยนคำค้นหา หรือสลับภาษาเพลงเพื่อดูผลลัพธ์อื่น</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {songs.map((song) => (
-                    <SongCard key={song.id} song={song} playlist={songs} />
+                  {displayedSongs.map((song) => (
+                    <SongCard key={song.id} song={song} playlist={displayedSongs} />
                   ))}
                 </div>
               )}
