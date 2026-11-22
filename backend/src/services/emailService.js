@@ -18,6 +18,9 @@ async function getTransporter() {
       host,
       port,
       secure: port === 465,
+      pool: true, // เปิด Connection Pooling เพื่อเชื่อมต่อค้างไว้ ไม่ต้อง Handshake ใหม่ทุกครั้ง
+      maxConnections: 5,
+      maxMessages: 100,
       auth: {
         user,
         pass,
@@ -26,7 +29,7 @@ async function getTransporter() {
         rejectUnauthorized: false
       }
     });
-    console.log(`📧 ระบบอีเมล: เชื่อมต่อ SMTP Server ที่ ${host}:${port}`);
+    console.log(`📧 ระบบอีเมล: เชื่อมต่อ SMTP Server ที่ ${host}:${port} (Pooled)`);
   } else {
     // ถ้ายังไม่ได้ตั้งค่า SMTP ให้จำลองการส่ง และใช้อีเมลทดสอบ Ethereal หรือ Console Log
     console.log('📧 ระบบอีเมล: ยังไม่ได้ระบุ SMTP credentials ใน .env (จะแสดงรหัสยืนยันในคอนโซลและคืนค่าเพื่อความสะดวกในการทดสอบ)');

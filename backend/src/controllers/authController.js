@@ -236,8 +236,11 @@ async function forgotPassword(req, res) {
       [cleanEmail, otp, expiresAt]
     );
 
-    // ส่งอีเมลพร้อมรหัสยืนยัน OTP อัตโนมัติ
-    await sendPasswordResetEmail(user.email, user.username, otp);
+    // ส่งอีเมลพร้อมรหัสยืนยัน OTP อัตโนมัติในเบื้องหลัง (Non-blocking background)
+    // ทำให้ระบบตอบกลับผู้ใช้ทันทีภายในเสี้ยววินาที ไม่ต้องรอ Gmail Handshake
+    sendPasswordResetEmail(user.email, user.username, otp).catch((err) => {
+      console.error('Async send mail error:', err);
+    });
 
     return res.json({
       success: true,
