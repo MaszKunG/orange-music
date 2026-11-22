@@ -51,11 +51,31 @@ async function getTransporter() {
   return transporter;
 }
 
+// ค้นหา Brevo Key แบบยืดหยุ่น (ป้องกันการพิมพ์ตัวพิมพ์เล็ก/ใหญ่ หรือชื่อคีย์ต่างกันเล็กน้อย)
+function getBrevoKey() {
+  if (process.env.BREVO_API_KEY && process.env.BREVO_API_KEY.trim()) {
+    return process.env.BREVO_API_KEY.trim();
+  }
+  for (const [k, v] of Object.entries(process.env)) {
+    if (k.toUpperCase().includes('BREVO') && v && typeof v === 'string' && v.trim()) {
+      return v.trim();
+    }
+  }
+  return null;
+}
+
 // ส่งผ่าน Brevo REST API (HTTPS Port 443 - ไม่โดน Render Free บล็อก 100%)
 async function sendViaBrevo(toEmail, username, otp, htmlContent) {
-  const apiKey = process.env.BREVO_API_KEY.trim();
-  const senderEmail = process.env.SMTP_USER || process.env.EMAIL_FROM || 'orangemusicreal@gmail.com';
-  const cleanSender = senderEmail.includes('<') ? senderEmail.match(/<([^>]+)>/)?.[1] || senderEmail : senderEmail;
+  const apiKey = getBrevoKey();
+  if (!apiKey) throw new Error('No Brevo API key found in environment');
+
+  let senderEmail = process.env.SMTP_USER || process.env.EMAIL_FROM || 'orangemusicreal@gmail.com';
+  if (senderEmail.includes('<')) {
+    senderEmail = senderEmail.match(/<([^>]+)>/)?.[1] || senderEmail;
+  }
+  senderEmail = senderEmail.trim();
+
+  console.log(`📤 กำลังส่งอีเมลผ่าน Brevo API ไปยัง ${toEmail} (Sender: ${senderEmail})...`);
 
   const res = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
@@ -65,7 +85,7 @@ async function sendViaBrevo(toEmail, username, otp, htmlContent) {
       'content-type': 'application/json'
     },
     body: JSON.stringify({
-      sender: { name: 'Orange Music', email: cleanSender },
+      sender: { name: 'Orange Music', email: senderEmail },
       to: [{ email: toEmail, name: username || 'User' }],
       subject: `[Orange Music] รหัสยืนยันตั้งรหัสผ่านใหม่: ${otp}`,
       htmlContent: htmlContent
@@ -74,6 +94,7 @@ async function sendViaBrevo(toEmail, username, otp, htmlContent) {
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
+    console.error('❌ Brevo API Response Error:', res.status, JSON.stringify(data));
     throw new Error(data.message || `Brevo error ${res.status}`);
   }
 
@@ -171,12 +192,16 @@ async function sendPasswordResetEmail(toEmail, username, otp) {
   console.log(`========================================\n`);
 
   // 1. ลองส่งผ่าน Brevo REST API ก่อน (ถ้ามีการตั้งค่า BREVO_API_KEY)
-  if (process.env.BREVO_API_KEY) {
+  const brevoKey = getBrevoKey();
+  if (brevoKey) {
+    console.log(`🔑 ตรวจพบ Brevo API Key (ความยาว ${brevoKey.length} ตัวอักษร) กำลังส่งผ่าน Brevo API...`);
     try {
       return await sendViaBrevo(toEmail, username, otp, htmlContent);
     } catch (e) {
       console.error('Brevo API send failed, fallback to others:', e.message);
     }
+  } else {
+    console.log('⚠️ ไม่พบตัวแปร BREVO_API_KEY ในระบบ (จะสลับไปใช้ SMTP แทน)');
   }
 
   // 2. ลองส่งผ่าน Resend REST API (ถ้ามีการตั้งค่า RESEND_API_KEY)
