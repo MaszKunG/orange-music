@@ -29,12 +29,18 @@ export default function LandingHomePage() {
 
   useEffect(() => {
     loadData();
-  }, [selectedCategory]);
+  }, [selectedCategory, musicOrigin]);
 
   const loadData = async () => {
     try {
       setLoading(true);
-      const songUrl = selectedCategory ? `/songs?category_id=${selectedCategory}` : '/songs';
+      let songUrl = '/songs';
+      const params = [];
+      if (selectedCategory) params.push(`category_id=${selectedCategory}`);
+      if (musicOrigin === 'thai') params.push('language=thai');
+      if (musicOrigin === 'inter') params.push('language=international');
+      if (params.length > 0) songUrl += '?' + params.join('&');
+
       const [songsRes, catsRes] = await Promise.all([
         api.get(songUrl),
         api.get('/categories')
@@ -44,7 +50,12 @@ export default function LandingHomePage() {
         setSongs(songsRes.songs);
       }
       if (catsRes.success) {
-        setCategories(catsRes.categories);
+        // กรองหมวดภาษาออกจาก category pills (เพราะมี filter ภาษาแยกอยู่แล้ว)
+        const genreCats = catsRes.categories.filter(c =>
+          !c.name.includes('เพลงไทย') && !c.name.includes('เพลงสากล') &&
+          !c.name.includes('International') && !c.name.includes('Thai Music')
+        );
+        setCategories(genreCats);
       }
     } catch (err) {
       console.error('Load home data error:', err);
@@ -53,23 +64,9 @@ export default function LandingHomePage() {
     }
   };
 
-  // ตรวจจับเพลงไทย vs เพลงสากล
-  const isThaiSong = (song) => {
-    if (song.category_name && (song.category_name.includes('เพลงไทย') || song.category_name.includes('Thai'))) return true;
-    if (song.category_name && (song.category_name.includes('เพลงสากล') || song.category_name.includes('International'))) return false;
-    const thaiRegex = /[\u0E00-\u0E7F]/;
-    return thaiRegex.test(song.title || '') || thaiRegex.test(song.artist || '') || thaiRegex.test(song.lyrics || '');
-  };
-
-  const filteredSongs = songs.filter((song) => {
-    if (musicOrigin === 'thai') return isThaiSong(song);
-    if (musicOrigin === 'inter') return !isThaiSong(song);
-    return true;
-  });
-
-  const popularSongs = [...filteredSongs].sort((a, b) => (b.play_count || 0) - (a.play_count || 0)).slice(0, 4);
-  const newestSongs = [...filteredSongs].slice(0, 8);
-  const featuredSong = filteredSongs[0] || songs[0];
+  const popularSongs = [...songs].sort((a, b) => (b.play_count || 0) - (a.play_count || 0)).slice(0, 4);
+  const newestSongs = [...songs].slice(0, 8);
+  const featuredSong = songs[0];
 
   return (
     <div className="space-y-10 pb-20">
