@@ -298,7 +298,7 @@ export default function LandingHomePage() {
           <div className="text-center py-12 text-text-muted text-sm">
             กำลังโหลดรายการเพลง...
           </div>
-        ) : filteredSongs.length === 0 ? (
+        ) : songs.length === 0 ? (
           <div className="text-center py-12 bg-dark-surface rounded-2xl border border-dark-border p-8">
             <Headphones className="w-12 h-12 text-text-muted mx-auto mb-3" />
             <p className="text-sm font-semibold text-white">ยังไม่มีเพลงในหมวดที่เลือก</p>
@@ -307,7 +307,7 @@ export default function LandingHomePage() {
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-4">
             {newestSongs.map((song) => (
-              <SongCard key={song.id} song={song} playlist={filteredSongs} />
+              <SongCard key={song.id} song={song} playlist={songs} />
             ))}
           </div>
         )}
